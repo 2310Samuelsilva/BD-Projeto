@@ -41,3 +41,15 @@ Do enunciado:
 
 
 
+## 05/06
+- Create.sql
+- Populate.sql ()
+    - Criar as procedures necessarias e as do ponto 4 do enunciado
+- Queries.sql (3.)
+- Results.sql (4.)
+- Remocao de dados (5.)
+- Resto
+    
+
+
+
