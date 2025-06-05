@@ -1,18 +1,29 @@
 -- Use the DB
 USE ipm_bidding_system;
 
-TRUNCATE TABLE TimeSlot;
-TRUNCATE TABLE Location;
-TRUNCATE TABLE Organization;
-TRUNCATE TABLE Person;
-TRUNCATE TABLE Participant;
-TRUNCATE TABLE ParticipantSession;
-TRUNCATE TABLE Auctioneer;
-TRUNCATE TABLE `Session`;
+-- Disable FK checks
+SET FOREIGN_KEY_CHECKS=0;
+
+-- Delete data in the right order (child tables first)
+TRUNCATE TABLE Bid;
+TRUNCATE TABLE ItemHistory;
+TRUNCATE TABLE ItemLot;
 TRUNCATE TABLE SessionLot;
+TRUNCATE TABLE ParticipantSession;
+TRUNCATE TABLE Participant;
+TRUNCATE TABLE Auctioneer;
+TRUNCATE TABLE Session;
 TRUNCATE TABLE Lot;
 TRUNCATE TABLE Item;
-TRUNCATE TABLE Bid;
+TRUNCATE TABLE Person;
+TRUNCATE TABLE Organization;
+TRUNCATE TABLE Location;
+TRUNCATE TABLE TimeSlot;
+TRUNCATE TABLE MachineCategory;
+TRUNCATE TABLE MuscleCategory;
+
+-- Enable FK checks again
+SET FOREIGN_KEY_CHECKS=1;
 
 
 /* Populate: Insert default data for testing or initializing system */
@@ -29,26 +40,26 @@ INSERT INTO `TimeSlot` (timeSlotStartTime, timeSlotEndTime) VALUES
 
 
 INSERT INTO `Location` (locationCountry, locationCity, locationAddress, locationPostalCode) VALUES
-('Country1', 'City1', 'Address1', 'PostalCode1'),
-('Country2', 'City2', 'Address2', 'PostalCode2'),
-('Country3', 'City3', 'Address3', 'PostalCode3'),
-('Country4', 'City4', 'Address4', 'PostalCode4'),
-('Country5', 'City5', 'Address5', 'PostalCode5'),
-('Country6', 'City6', 'Address6', 'PostalCode6'),
-('Country7', 'City7', 'Address7', 'PostalCode7'),
-('Country8', 'City8', 'Address8', 'PostalCode8'),
-('Country9', 'City9', 'Address9', 'PostalCode9'),
-('Country10', 'City10', 'Address10', 'PostalCode10'),
-('Country11', 'City11', 'Address11', 'PostalCode11'),
-('Country12', 'City12', 'Address12', 'PostalCode12'),
-('Country13', 'City13', 'Address13', 'PostalCode13'),
-('Country14', 'City14', 'Address14', 'PostalCode14'),
-('Country15', 'City15', 'Address15', 'PostalCode15'),
-('Country16', 'City16', 'Address16', 'PostalCode16'),
-('Country17', 'City17', 'Address17', 'PostalCode17'),
-('Country18', 'City18', 'Address18', 'PostalCode18'),
-('Country19', 'City19', 'Address19', 'PostalCode19'),
-('Country20', 'City20', 'Address20', 'PostalCode20')
+('Country1', 'City1', 'Address1', '2955-201'),
+('Country2', 'City2', 'Address2', '2955-201'),
+('Country3', 'City3', 'Address3', '2955-201'),
+('Country4', 'City4', 'Address4', '2955-201'),
+('Country5', 'City5', 'Address5', '2955-201'),
+('Country6', 'City6', 'Address6', '2955-201'),
+('Country7', 'City7', 'Address7', '2955-201'),
+('Country8', 'City8', 'Address8', '2955-201'),
+('Country9', 'City9', 'Address9', '2955-201'),
+('Country10', 'City10', 'Address10', '2955-201'),
+('Country11', 'City11', 'Address11', '2955-201'),
+('Country12', 'City12', 'Address12', '2955-201'),
+('Country13', 'City13', 'Address13', '2955-201'),
+('Country14', 'City14', 'Address14', '2955-201'),
+('Country15', 'City15', 'Address15', '2955-201'),
+('Country16', 'City16', 'Address16', '2955-201'),
+('Country17', 'City17', 'Address17', '2955-201'),
+('Country18', 'City18', 'Address18', '2955-201'),
+('Country19', 'City19', 'Address19', '2955-201'),
+('Country20', 'City20', 'Address20', '2955-201');
 
 INSERT INTO `Organization` (orgName) VALUES 
 ('Organization1'),

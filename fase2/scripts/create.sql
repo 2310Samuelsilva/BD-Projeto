@@ -4,7 +4,11 @@ CREATE DATABASE IF NOT EXISTS ipm_bidding_system CHARACTER SET utf8mb4 COLLATE u
 -- Use the database
 USE ipm_bidding_system;
 
+-- Disable foreign key checks
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- CREATE TABLE IF NOT EXISTS TimeSlot
+DROP TABLE IF EXISTS `TimeSlot`;
 CREATE TABLE IF NOT EXISTS `TimeSlot` (
 	timeSlotId INT PRIMARY KEY AUTO_INCREMENT,
 	timeSlotStartTime DATETIME,
@@ -14,6 +18,7 @@ CREATE TABLE IF NOT EXISTS `TimeSlot` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Location
+DROP TABLE IF EXISTS `Location`;
 CREATE TABLE IF NOT EXISTS `Location` (
 	locationId INT PRIMARY KEY AUTO_INCREMENT,
 	locationCountry VARCHAR(30),
@@ -25,6 +30,7 @@ CREATE TABLE IF NOT EXISTS `Location` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Organization
+DROP TABLE IF EXISTS `Organization`;
 CREATE TABLE IF NOT EXISTS `Organization` (
 	orgId INT PRIMARY KEY AUTO_INCREMENT, 
 	orgName VARCHAR(50) NOT NULL, 
@@ -33,6 +39,7 @@ CREATE TABLE IF NOT EXISTS `Organization` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Person
+DROP TABLE IF EXISTS `Person`;
 CREATE TABLE IF NOT EXISTS `Person` (
 	personID INT PRIMARY KEY AUTO_INCREMENT,
 	personName VARCHAR(30) NOT NULL,
@@ -44,6 +51,7 @@ CREATE TABLE IF NOT EXISTS `Person` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Participant
+DROP TABLE IF EXISTS `Participant`;
 CREATE TABLE IF NOT EXISTS `Participant` (
 	participantID INT PRIMARY KEY AUTO_INCREMENT,
 	person_personID INT NOT NULL UNIQUE,
@@ -53,6 +61,7 @@ CREATE TABLE IF NOT EXISTS `Participant` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS ParticipantSession
+DROP TABLE IF EXISTS `ParticipantSession`;
 CREATE TABLE IF NOT EXISTS `ParticipantSession` (
 	participant_participantID INT NOT NULL,
 	session_sessionId INT NOT NULL,
@@ -62,6 +71,7 @@ CREATE TABLE IF NOT EXISTS `ParticipantSession` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Auctioneer
+DROP TABLE IF EXISTS `Auctioneer`;
 CREATE TABLE IF NOT EXISTS `Auctioneer` (
 	aucId INT PRIMARY KEY AUTO_INCREMENT,
 	person_personID INT NOT NULL,
@@ -71,6 +81,7 @@ CREATE TABLE IF NOT EXISTS `Auctioneer` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS MachineCategory
+DROP TABLE IF EXISTS `MachineCategory`;
 CREATE TABLE IF NOT EXISTS `MachineCategory` (
 	machineCategoryId INT PRIMARY KEY AUTO_INCREMENT,
 	machineCategoryName VARCHAR(25) NOT NULL,
@@ -78,7 +89,8 @@ CREATE TABLE IF NOT EXISTS `MachineCategory` (
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
--- CREATE TABLE IF NOT EXISTS MachineCategory
+-- CREATE TABLE IF NOT EXISTS MuscleCategory
+DROP TABLE IF EXISTS `MuscleCategory`;
 CREATE TABLE IF NOT EXISTS `MuscleCategory` (
 	muscleCategoryId INT PRIMARY KEY AUTO_INCREMENT,
 	muscleCategoryName VARCHAR(25) NOT NULL,
@@ -89,21 +101,25 @@ CREATE TABLE IF NOT EXISTS `MuscleCategory` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Session
+DROP TABLE IF EXISTS `Session`;
 CREATE TABLE IF NOT EXISTS `Session` (
 	sessionId INT PRIMARY KEY AUTO_INCREMENT,
 	sessionName VARCHAR(100),
-	sessionState SET('finished', 'new', 'canceled', 'scheduled'),
+	sessionState SET('complete', 'new', 'canceled', 'scheduled', 'active') DEFAULT 'new',
+	location_locationId INT NOT NULL,
 	organization_orgId INT NOT NULL,
 	auctioneer_aucId INT,
 	timeslot_timeSlotId INT,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	FOREIGN KEY (location_locationId) REFERENCES `Location` (locationId),
 	FOREIGN KEY (organization_orgId) REFERENCES `Organization` (orgId),
 	FOREIGN KEY (auctioneer_aucId) REFERENCES `Auctioneer` (aucId),
 	FOREIGN KEY (timeslot_timeSlotId) REFERENCES `TimeSlot` (timeSlotId)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Lot
+DROP TABLE IF EXISTS `Lot`;
 CREATE TABLE IF NOT EXISTS `Lot` (
 	lotId INT PRIMARY KEY AUTO_INCREMENT,
 	lotName VARCHAR(100),
@@ -114,6 +130,7 @@ CREATE TABLE IF NOT EXISTS `Lot` (
 );
 
 -- CREATE TABLE IF NOT EXISTS Session_Lot
+DROP TABLE IF EXISTS `SessionLot`;
 CREATE TABLE IF NOT EXISTS `SessionLot` (
 	sessionId INT NOT NULL,
 	lotId INT NOT NULL,
@@ -125,6 +142,7 @@ CREATE TABLE IF NOT EXISTS `SessionLot` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Item
+DROP TABLE IF EXISTS `Item`;
 CREATE TABLE IF NOT EXISTS `Item` (
 	itemId INT PRIMARY KEY AUTO_INCREMENT,
 	itemName VARCHAR(30),
@@ -141,6 +159,7 @@ CREATE TABLE IF NOT EXISTS `Item` (
 
 
 -- CREATE TABLE IF NOT EXISTS ItemLot
+DROP TABLE IF EXISTS `ItemLot`;
 CREATE TABLE IF NOT EXISTS `ItemLot` (
 	item_itemID INT NOT NULL, 
 	lot_lotID INT NOT NULL, 
@@ -150,6 +169,7 @@ CREATE TABLE IF NOT EXISTS `ItemLot` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS ItemHistory
+DROP TABLE IF EXISTS `ItemHistory`;
 CREATE TABLE IF NOT EXISTS `ItemHistory` (
 	itemHistoryId INT PRIMARY KEY AUTO_INCREMENT,
 	item_itemID INT NOT NULL,
@@ -170,6 +190,7 @@ CREATE TABLE IF NOT EXISTS `ItemHistory` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Bid
+DROP TABLE IF EXISTS `Bid`;
 CREATE TABLE IF NOT EXISTS `Bid` (
 	bidId INT PRIMARY KEY AUTO_INCREMENT,
 	bidValue DECIMAL(10, 2) NOT NULL,
@@ -181,3 +202,7 @@ CREATE TABLE IF NOT EXISTS `Bid` (
 	FOREIGN KEY (participant_participantID) REFERENCES Participant (participantID),
 	FOREIGN KEY (session_sessionId, lot_lotId) REFERENCES SessionLot (sessionId, lotId)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+
+-- Enable foreign key checks
+SET FOREIGN_KEY_CHECKS = 1;
