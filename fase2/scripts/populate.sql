@@ -1,6 +1,20 @@
 -- Use the DB
 USE ipm_bidding_system;
 
+TRUNCATE TABLE TimeSlot;
+TRUNCATE TABLE Location;
+TRUNCATE TABLE Organization;
+TRUNCATE TABLE Person;
+TRUNCATE TABLE Participant;
+TRUNCATE TABLE ParticipantSession;
+TRUNCATE TABLE Auctioneer;
+TRUNCATE TABLE `Session`;
+TRUNCATE TABLE SessionLot;
+TRUNCATE TABLE Lot;
+TRUNCATE TABLE Item;
+TRUNCATE TABLE Bid;
+
+
 /* Populate: Insert default data for testing or initializing system */
 
 INSERT INTO `TimeSlot` (timeSlotStartTime, timeSlotEndTime) VALUES 
@@ -39,23 +53,23 @@ INSERT INTO `Location` (locationCountry, locationCity, locationAddress, location
 INSERT INTO `Organization` (orgName) VALUES 
 ('Organization1'),
 ('Organization2'),
-('Organization3')
-('Organization4')
-('Organization5')
-('Organization6')
-('Organization7')
-('Organization8')
-('Organization9')
-('Organization10')
-('Organization11')
-('Organization12')
-('Organization13')
-('Organization14')
-('Organization15')
-('Organization16')
-('Organization17')
-('Organization18')
-('Organization19')
+('Organization3'),
+('Organization4'),
+('Organization5'),
+('Organization6'),
+('Organization7'),
+('Organization8'),
+('Organization9'),
+('Organization10'),
+('Organization11'),
+('Organization12'),
+('Organization13'),
+('Organization14'),
+('Organization15'),
+('Organization16'),
+('Organization17'),
+('Organization18'),
+('Organization19'),
 ('Organization20');
 
 INSERT INTO `Person` (personName, personEmail, personBirthDate, personNIF) VALUES
@@ -77,7 +91,7 @@ INSERT INTO `Person` (personName, personEmail, personBirthDate, personNIF) VALUE
 ('Participant16', 'participant16@participant.com', '2005-04-04', 678901234),
 ('Auctioneer1', 'aurtioneer1@auctioneer.com', '2009-08-08', 012345678),
 ('Auctioneer2', 'aurtioneer2@auctioneer.com', '2003-02-22', 012346898),
-('Auctioneer3', 'aurtioneer3@auctioneer.com', '2003-04-03', 012345654),
+('Auctioneer3', 'aurtioneer3@auctioneer.com', '2003-04-03', 012345654);
 
 
 -- #TODO Maybe make ii so we dont manually provide IDs?
@@ -97,13 +111,13 @@ INSERT INTO `Participant` (person_personID) VALUES
 (13),
 (14),
 (15),
-(16)
+(16);
 
 -- #TODO Maybe make ii so we dont manually provide IDs?
 INSERT INTO `Auctioneer` (person_personID) VALUES
 (17),
 (18),
-(19)
+(19);
 
 
 INSERT INTO `MachineCategory` (machineCategoryName) VALUES 
@@ -111,7 +125,7 @@ INSERT INTO `MachineCategory` (machineCategoryName) VALUES
 ('plated'),
 ('hydraulic'),
 ('cardio'), 
-('other')
+('other');
 
 INSERT INTO `MuscleCategory` (muscleCategoryName, parentMuscleCategoryId) VALUES 
 ('arms', NULL),
@@ -191,8 +205,8 @@ itemParticipatedInBid, itemSoldInBid, machineCategory_machineCategoryId, muscleC
 (20, 'Item20', 200.00, 'new', 'new', NULL, NULL, NULL, 5, 5);
 
 
-// USE Procedure to add a SESSION
-// USE Procedure to add a PARTICIPANT to a SESSION
-// USE Procedure to add  lot to session
-// USE Procedure to add item to lot
-// USE Procedure to add bid
+-- // USE Procedure to add a SESSION
+-- // USE Procedure to add a PARTICIPANT to a SESSION
+-- // USE Procedure to add  lot to session
+-- // USE Procedure to add item to lot
+-- // USE Procedure to add bid
