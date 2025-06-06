@@ -17,6 +17,8 @@ Criar uma nova SESSION.
 #IDEIA: Validar se existe uma sessao com a mesma localizacao e mesmo timeslot, nesse caso retornar erro
 */
 
+DROP PROCEDURE IF EXISTS sp_criar_leilao; 
+
 DELIMITER $$
 CREATE PROCEDURE sp_criar_leilao(IN sessionName VARCHAR(100), 
         IN location_locationId INT,
@@ -26,7 +28,7 @@ CREATE PROCEDURE sp_criar_leilao(IN sessionName VARCHAR(100),
 BEGIN
 
     INSERT INTO Session (sessionName, location_locationId, organization_orgId, auctioneer_aucId, timeslot_timeSlotId)
-    VALUES (sessionName, location_locationId, organization_orgId, auctioneer_aucId timeslot_timeSlotId);
+    VALUES (sessionName, location_locationId, organization_orgId, auctioneer_aucId, timeslot_timeSlotId);
 END$$
 DELIMITER ; 
 
@@ -35,9 +37,10 @@ DELIMITER ;
 
 Adiciona uma pessoa à lista de participantes que irão fazer parte do leilão indicado;
 
-#IDEA: Validar se participante já está numa sessao, nesse caso ignorar 
+#IDEA: Validar se participante já está numa sessao ao mesmo tempo, nesse caso ignorar 
 */
 
+DROP PROCEDURE IF EXISTS sp_adicionar_participante; 
 DELIMITER $$
 CREATE PROCEDURE sp_adicionar_participante(
         IN participantId INT,
@@ -70,10 +73,11 @@ c. Caso contrário, devolve um erro.
 
 */
 
+DROP PROCEDURE IF EXISTS sp_remover_leilao;
 DELIMITER $$
-CREATE PROCEDURE sp_remover_leilao(IN sessionId INT, IN force BOOLEAN DEFAULT FALSE)
+CREATE PROCEDURE sp_remover_leilao(IN sessionId INT, IN forceDelete BOOLEAN)
 BEGIN
-        IF CanDeleteSession(sessionId) OR force THEN
+        IF CanDeleteSession(sessionId) OR forceDelete THEN
                 CALL sp_delete_session(sessionId);
         ELSE
                 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Leilao nao pode ser removido';
@@ -89,6 +93,8 @@ Cria um novo leilão/evento com uma cópia de todos os dados existentes no leil�
 A única exceção é que, à descrição do leilão, deverá ser adicionada a string " --- COPIA (a preencher)".
 */
 
+DROP PROCEDURE IF EXISTS sp_clonar_leilao;
+DELIMITER $$
 CREATE PROCEDURE sp_clonar_leilao(IN sessionId INT)
 BEGIN
 
@@ -122,7 +128,6 @@ BEGIN
   -- Optionally return the new sessionId
   SELECT newSessionId AS "Nova Sessao";
 END$$
-
 DELIMITER ;
 
 /*###########
@@ -134,13 +139,14 @@ DELIMITER ;
  Apagar uma sessao e todos dados relacionados com a mesma 
 */
 
+DROP PROCEDURE IF EXISTS sp_delete_session;
 DELIMITER $$
 CREATE PROCEDURE sp_delete_session(IN sessionId INT)
 BEGIN
     DELETE FROM ParticipantSession WHERE session_sessionId = sessionId;
-    DELETE FROM SessionLot WHERE session_sessionId = sessionId;
     DELETE FROM Bid WHERE session_sessionId = sessionId;
-    DELETE FROM Session WHERE session_sessionId = sessionId;
+    DELETE FROM SessionLot WHERE session_sessionId = sessionId;
+    DELETE FROM `Session` WHERE sessionId = sessionId;
 END$$
 DELIMITER ;
 
@@ -162,7 +168,7 @@ DELIMITER ;
 -- 2 triggers
 
 -- View 1 : Sessoes ativas
--- View 2 : 
+-- View 2 : Session Lots
 -- View 3 : Detalhes de um Item
 -- View 4 : Taxa de sucesso (lotes vendidos vs. não vendidos) por sessão
 -- View 5 : Leiloeiros com mais sessões realizadas ou maior volume de vendas
@@ -189,8 +195,27 @@ DELIMITER ;
 /* V1: ActiveSessions
 List all active sessions
 */
+
+DROP VIEW IF EXISTS ActiveSessions;
 CREATE VIEW ActiveSessions AS 
-SELECT * FROM Session WHERE  LOWERCASE(sessionState) = 'active';
+SELECT * FROM `Session` WHERE  sessionState = 'active';
+
+/*
+  V2: ParticipantDetails
+  List all participants details
+*/
+DROP VIEW IF EXISTS ParticipantDetails;
+CREATE VIEW ParticipantDetails AS 
+SELECT 
+  part.participantID AS "participantID",
+  per.personName AS "participantName",
+  per.personEmail AS "participantEmail",
+  per.personNIF AS "participantNIF",
+  CalculateAge(per.personBirthDate) AS "participantAge",
+  per.personBirthDate AS "participantBirthDate",
+  per.personGender AS "participantGender"
+FROM Participant part
+INNER JOIN `Person` per ON part.person_personID = per.personID;
 
 
 
@@ -198,21 +223,67 @@ SELECT * FROM Session WHERE  LOWERCASE(sessionState) = 'active';
    Stored Procedures
 ######################*/
 
+-- SPXXX : Add Lot to Session
+
+DROP PROCEDURE IF EXISTS sp_add_lot_to_session;
+DELIMITER $$
+CREATE PROCEDURE sp_add_lot_to_session(IN lotId INT, IN sessionId INT)
+BEGIN
+    INSERT INTO SessionLot (lot_lotID, session_sessionId)
+    VALUES (lotId, sessionId);
+END$$
+DELIMITER ;
+
+
+-- SPXXX : Add Item to Lot
+
+DROP PROCEDURE IF EXISTS sp_add_item_to_lot;
+DELIMITER $$
+CREATE PROCEDURE sp_add_item_to_lot(IN itemId INT, IN lotId INT)
+BEGIN
+    INSERT INTO ItemLot (item_itemId, lot_lotId)
+    VALUES (itemId, lotId);
+END$$
+DELIMITER ;
+
+
+-- SPXXX : ADD A BID
+-- Description: Add a bid to a lot
+-- IMPROVEMENT: Check if the bid is higher than the current bid, check if session is active
+
+DROP PROCEDURE IF EXISTS sp_add_bid;
+DELIMITER $$
+CREATE PROCEDURE sp_add_bid(IN bidValue INT, IN participantId INT, IN sessionId INT, IN lotId INT)
+BEGIN
+    INSERT INTO Bid (bidValue, participant_participantId, session_sessionId, lot_lotId)
+    VALUES (bidValue, participantId, sessionId, lotId);
+END$$
+DELIMITER ;
+
+
 
 /*###########
     Functions
 #############*/
 
-CREATE FUNCTION IsItemOnActiveSession(IN itemId INT, IN sessionId INT) RETURNS BOOLEAN
+/* TO COMPLETE NOT WORKING */
+DROP FUNCTION IF EXISTS IsItemOnActiveSession;
+DELIMITER $$
+CREATE FUNCTION IsItemOnActiveSession(itemId INT, sessionId INT) RETURNS BOOLEAN
+DETERMINISTIC
+READS SQL DATA
 BEGIN
     RETURN EXISTS (SELECT * FROM ItemLot WHERE item_itemId = itemId AND session_sessionId = sessionId);
-END
+END$$
+DELIMITER ;
+
 
 
 /* F1: CanDeleteSession
 Return TRUE if the session can be deleted
 */
 
+DROP FUNCTION IF EXISTS CanDeleteSession;
 DELIMITER $$
 CREATE FUNCTION CanDeleteSession(sessionId INT) RETURNS BOOLEAN
 DETERMINISTIC
@@ -250,4 +321,28 @@ BEGIN
   -- If no dependencies found, session can be deleted
   RETURN TRUE;
 END$$
+DELIMITER ;
+
+
+/* F1: CanDeleteSession
+Return TRUE if the session can be deleted
+*/
+
+DROP FUNCTION IF EXISTS CalculateAge;
+DELIMITER $$
+CREATE FUNCTION CalculateAge(birthDate DATE) RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE age INT;
+    SET age = YEAR(CURDATE()) - YEAR(birthDate);
+    
+    -- If the current date is before the birthday this year, subtract 1
+    IF (MONTH(CURDATE()) < MONTH(birthDate)) 
+       OR (MONTH(CURDATE()) = MONTH(birthDate) AND DAY(CURDATE()) < DAY(birthDate)) THEN
+        SET age = age - 1;
+    END IF;
+    
+    RETURN age;
+END$$
+
 DELIMITER ;

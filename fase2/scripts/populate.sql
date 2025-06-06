@@ -83,26 +83,26 @@ INSERT INTO `Organization` (orgName) VALUES
 ('Organization19'),
 ('Organization20');
 
-INSERT INTO `Person` (personName, personEmail, personBirthDate, personNIF) VALUES
-('Participant1', 'participant1@participant.com', '1990-01-01', 123456789),
-('Participant2', 'participant2@participant.com', '1991-02-02', 234567890),
-('Participant3', 'participant3@participant.com', '1992-03-03', 345678901),
-('Participant4', 'participant4@participant.com', '1993-04-04', 456789012),
-('Participant5', 'participant5@participant.com', '1994-05-05', 567890123),
-('Participant6', 'participant6@participant.com', '1995-06-06', 678901234),
-('Participant7', 'participant7@participant.com', '1996-07-07', 789012345),
-('Participant8', 'participant8@participant.com', '1997-08-08', 890123456),
-('Participant9', 'participant9@participant.com', '1998-09-09', 901234567),
-('Participant10', 'participant10@participant.com', '1999-10-10', 012345678),
-('Participant11', 'participant11@participant.com', '2000-11-11', 123456789),
-('Participant12', 'participant12@participant.com', '2001-12-12', 234567890),
-('Participant13', 'participant13@participant.com', '2002-01-01', 345678901),
-('Participant14', 'participant14@participant.com', '2003-02-02', 456789012),
-('Participant15', 'participant15@participant.com', '2004-03-03', 567890123),
-('Participant16', 'participant16@participant.com', '2005-04-04', 678901234),
-('Auctioneer1', 'aurtioneer1@auctioneer.com', '2009-08-08', 012345678),
-('Auctioneer2', 'aurtioneer2@auctioneer.com', '2003-02-22', 012346898),
-('Auctioneer3', 'aurtioneer3@auctioneer.com', '2003-04-03', 012345654);
+INSERT INTO `Person` (personName, personEmail, personBirthDate, personNIF, personGender) VALUES
+('Participant1', 'participant1@participant.com', '1990-01-01', 123456789, 'male'),
+('Participant2', 'participant2@participant.com', '1991-02-02', 234567890, 'female'),
+('Participant3', 'participant3@participant.com', '1992-03-03', 345678901, 'other'),
+('Participant4', 'participant4@participant.com', '1993-04-04', 456789012, 'female'),
+('Participant5', 'participant5@participant.com', '1994-05-05', 567890123, 'male'),
+('Participant6', 'participant6@participant.com', '1995-06-06', 678901234, 'other'),
+('Participant7', 'participant7@participant.com', '1996-07-07', 789012345, 'female'),
+('Participant8', 'participant8@participant.com', '1997-08-08', 890123456, 'male'),
+('Participant9', 'participant9@participant.com', '1998-09-09', 901234567, 'other'),
+('Participant10', 'participant10@participant.com', '1999-10-10', 012345678, 'female'),
+('Participant11', 'participant11@participant.com', '2000-11-11', 123456789, 'male'),
+('Participant12', 'participant12@participant.com', '2001-12-12', 234567890, 'other'),
+('Participant13', 'participant13@participant.com', '2002-01-01', 345678901, 'female'),
+('Participant14', 'participant14@participant.com', '2003-02-02', 456789012, 'male'),
+('Participant15', 'participant15@participant.com', '2004-03-03', 567890123, 'other'),
+('Participant16', 'participant16@participant.com', '2005-04-04', 678901234, 'female'),
+('Auctioneer1', 'aurtioneer1@auctioneer.com', '2009-08-08', 012345678, 'male'),
+('Auctioneer2', 'aurtioneer2@auctioneer.com', '2003-02-22', 012346898, 'female'),
+('Auctioneer3', 'aurtioneer3@auctioneer.com', '2003-04-03', 012345654, 'other');
 
 
 -- #TODO Maybe make ii so we dont manually provide IDs?
@@ -217,7 +217,80 @@ itemParticipatedInBid, itemSoldInBid, machineCategory_machineCategoryId, muscleC
 
 
 -- // USE Procedure to add a SESSION
+-- // CALL sp_criar_leilao(sessionName, location_locationId, organization_orgId, auctioneer_aucId, timeslot_timeSlotId);
+CALL sp_criar_leilao('Session1', 1, 1, 1, 1);
+CALL sp_criar_leilao('Session2', 2, 2, 2, 2);
+CALL sp_criar_leilao('Session3', 3, 3, 1, 3);
+CALL sp_criar_leilao('Session4', 4, 4, 2, 4);
+CALL sp_criar_leilao('Session5', 5, 5, 3, 5);
+CALL sp_criar_leilao('Session6', 6, 6, 3, 6);
+CALL sp_criar_leilao('Session7', 7, 7, 2, 7);
+CALL sp_criar_leilao('Session8', 8, 8, 3, 8);
+CALL sp_criar_leilao('Session9', 9, 9, 1, 1);
+CALL sp_criar_leilao('Session10', 10, 2, 1, 2);
+
 -- // USE Procedure to add a PARTICIPANT to a SESSION
+-- CALL sp_adicionar_participante(participantId, sessionId);
+
+CALL sp_adicionar_participante(1, 1);
+CALL sp_adicionar_participante(1, 2);
+CALL sp_adicionar_participante(2, 1);
+CALL sp_adicionar_participante(2, 1);
+CALL sp_adicionar_participante(5, 5);
+CALL sp_adicionar_participante(6, 6);
+CALL sp_adicionar_participante(7, 7);
+CALL sp_adicionar_participante(8, 8);
+CALL sp_adicionar_participante(9, 9);
+CALL sp_adicionar_participante(10, 10);
+
+
 -- // USE Procedure to add  lot to session
+-- CALL sp_add_lot_to_session(lotId, sessionId);
+CALL sp_add_lot_to_session(1,1);
+CALL sp_add_lot_to_session(1,2);
+CALL sp_add_lot_to_session(3, 4);
+CALL sp_add_lot_to_session(4, 5);
+CALL sp_add_lot_to_session(5, 6);
+CALL sp_add_lot_to_session(6, 7);
+CALL sp_add_lot_to_session(7, 8);
+CALL sp_add_lot_to_session(8, 9);
+CALL sp_add_lot_to_session(9, 10);
+CALL sp_add_lot_to_session(10, 1);
+CALL sp_add_lot_to_session(11, 2);
+CALL sp_add_lot_to_session(12, 3);
+
 -- // USE Procedure to add item to lot
+-- CALL sp_add_item_to_lot(itemId, lotId);
+CALL sp_add_item_to_lot(1, 1);
+CALL sp_add_item_to_lot(2, 1);
+CALL sp_add_item_to_lot(3, 1);
+CALL sp_add_item_to_lot(4, 4);
+CALL sp_add_item_to_lot(5, 5);
+CALL sp_add_item_to_lot(6, 6);
+CALL sp_add_item_to_lot(7, 7);
+CALL sp_add_item_to_lot(8, 8);
+CALL sp_add_item_to_lot(9, 9);
+CALL sp_add_item_to_lot(10, 10);
+CALL sp_add_item_to_lot(11, 11);
+CALL sp_add_item_to_lot(12, 12);
+CALL sp_add_item_to_lot(13, 13);
+CALL sp_add_item_to_lot(14, 14);
+CALL sp_add_item_to_lot(15, 15);
+CALL sp_add_item_to_lot(16, 16);
+CALL sp_add_item_to_lot(17, 17);
+CALL sp_add_item_to_lot(18, 18);
+CALL sp_add_item_to_lot(19, 19);
+CALL sp_add_item_to_lot(20, 20);
+
 -- // USE Procedure to add bid
+-- CALL sp_add_bid(bidValue, participantId, sessionId, lotId);
+CALL sp_add_bid(100.00, 1, 1, 1);
+CALL sp_add_bid(200.00, 2, 1, 1);
+CALL sp_add_bid(300.00, 3, 3, 3);
+CALL sp_add_bid(400.00, 4, 4, 4);
+CALL sp_add_bid(500.00, 5, 5, 5);
+CALL sp_add_bid(600.00, 6, 6, 6);
+CALL sp_add_bid(700.00, 7, 7, 7);
+CALL sp_add_bid(800.00, 8, 8, 8);
+CALL sp_add_bid(900.00, 9, 9, 9);
+CALL sp_add_bid(1000.00, 10, 10, 10);

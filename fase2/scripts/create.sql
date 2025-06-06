@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `Person` (
 	personEmail VARCHAR(30) NOT NULL,
 	personBirthDate DATE NOT NULL,
 	personNIF INT NOT NULL,
+	personGender SET('male', 'female', 'other'),
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
@@ -132,13 +133,13 @@ CREATE TABLE IF NOT EXISTS `Lot` (
 -- CREATE TABLE IF NOT EXISTS Session_Lot
 DROP TABLE IF EXISTS `SessionLot`;
 CREATE TABLE IF NOT EXISTS `SessionLot` (
-	sessionId INT NOT NULL,
-	lotId INT NOT NULL,
+	session_sessionId INT NOT NULL,
+	lot_lotId INT NOT NULL,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	PRIMARY KEY (sessionId, lotId),
-	FOREIGN KEY (sessionId) REFERENCES `Session` (sessionId),
-	FOREIGN KEY (lotId) REFERENCES `Lot` (lotId)
+	PRIMARY KEY (session_sessionId, lot_lotId),
+	FOREIGN KEY (session_sessionId) REFERENCES `Session` (sessionId),
+	FOREIGN KEY (lot_lotId) REFERENCES `Lot` (lotId)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CREATE TABLE IF NOT EXISTS Item
@@ -200,7 +201,7 @@ CREATE TABLE IF NOT EXISTS `Bid` (
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY (participant_participantID) REFERENCES Participant (participantID),
-	FOREIGN KEY (session_sessionId, lot_lotId) REFERENCES SessionLot (sessionId, lotId)
+	FOREIGN KEY (session_sessionId, lot_lotId) REFERENCES SessionLot (session_sessionId, lot_lotID)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 
