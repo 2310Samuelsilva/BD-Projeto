@@ -37,4 +37,3 @@ WHERE s.sessionId IN (SELECT sessionId FROM ActiveSessions)
   ) > 3;
  
  
-  FROM SessionDetails WHERE numLots > 3
