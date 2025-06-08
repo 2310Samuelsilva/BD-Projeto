@@ -23,12 +23,12 @@ DELIMITER $$
 CREATE PROCEDURE sp_criar_leilao(IN sessionName VARCHAR(100), 
         IN location_locationId INT,
         IN organization_orgId INT,
-        IN auctioneer_aucId INT,
+        IN auctioneer_auctonieerId INT,
         IN timeslot_timeSlotId INT)
 BEGIN
 
-    INSERT INTO Session (sessionName, location_locationId, organization_orgId, auctioneer_aucId, timeslot_timeSlotId)
-    VALUES (sessionName, location_locationId, organization_orgId, auctioneer_aucId, timeslot_timeSlotId);
+    INSERT INTO Session (sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId)
+    VALUES (sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId);
 END$$
 DELIMITER ; 
 
@@ -54,7 +54,7 @@ END$$
 DELIMITER ;
 
 
-/* SP3 : sp_registar_resultado(id_leilao, id_participante, …) 
+/* SP3 : sp_criar_transacao(id_leilao, id_participante, …) 
 
 Regista o resultado do participante no leilão/evento indicado;
 */
@@ -100,12 +100,12 @@ BEGIN
 
   DECLARE newSessionId INT;
 
-  INSERT INTO `Session` (sessionName, location_locationId, organization_orgId, auctioneer_aucId, timeslot_timeSlotId)
+  INSERT INTO `Session` (sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId)
   SELECT 
     CONCAT(sessionName, '  --- COPIA (a preencher)'),
     location_locationId,
     organization_orgId,
-    auctioneer_aucId,
+    auctioneer_auctonieerId,
     timeslot_timeSlotId
   FROM `Session`
   WHERE sessionId = sessionId;
@@ -136,20 +136,272 @@ DELIMITER ;
 
 
 /* SP6 : sp_delete_session(sessionId)
- Apagar uma sessao e todos dados relacionados com a mesma 
+  Delete a session and all related data, loop through all bids and delete them using the dedicated procedure
 */
 
 DROP PROCEDURE IF EXISTS sp_delete_session;
 DELIMITER $$
-CREATE PROCEDURE sp_delete_session(IN sessionId INT)
+
+CREATE PROCEDURE sp_delete_session(IN p_sessionId INT)
 BEGIN
-    DELETE FROM ParticipantSession WHERE session_sessionId = sessionId;
-    DELETE FROM Bid WHERE session_sessionId = sessionId;
-    DELETE FROM SessionLot WHERE session_sessionId = sessionId;
-    DELETE FROM `Session` WHERE sessionId = sessionId;
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE bidId INT;
+    DECLARE bid_cursor CURSOR FOR
+        SELECT bidId FROM Bid WHERE session_sessionId = p_sessionId;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    
+
+    -- Loop through all bids and delete them using the dedicated procedure
+    OPEN bid_cursor;
+    bid_loop: LOOP
+        FETCH bid_cursor INTO bidId;
+        IF done THEN
+            LEAVE bid_loop;
+        END IF;
+        CALL sp_delete_bid(bidId);
+    END LOOP;
+    CLOSE bid_cursor;
+
+    DELETE FROM `ParticipantSession` WHERE session_sessionId = p_sessionId;
+    DELETE FROM `SessionLot` WHERE session_sessionId = p_sessionId;
+    DELETE FROM `Session` WHERE sessionId = p_sessionId;
+END$$
+
+DELIMITER ;
+
+
+
+/* SP7 : sp_delete_auctioneer(auctioneerId)
+ Delete an auctioneer and all related data, set session.auctioneer_auctonieerId to NULL
+*/
+DROP PROCEDURE IF EXISTS sp_delete_auctioneer;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_auctioneer(IN p_auctioneerId INT)
+BEGIN
+    UPDATE `Session` SET auctioneer_auctonieerId = NULL WHERE auctioneer_auctonieerId = p_auctioneerId;
+    DELETE FROM `Auctioneer` WHERE auctioneerId = p_auctioneerId;
 END$$
 DELIMITER ;
 
+/* SP8 : sp_delete_bid(p_bidId)
+  Delete a bid and all related data, set transaction.bid_bidId to NULL
+*/
+DROP PROCEDURE IF EXISTS sp_delete_bid;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_bid(IN p_bidId INT)
+BEGIN
+    DELETE FROM `Bid` WHERE bidId = p_bidId;
+    UPDATE `Transaction` SET bid_bidId = NULL WHERE bid_bidId = p_bidId;
+END$$
+DELIMITER ;
+
+
+/* SP9 : sp_delete_item(p_itemId)
+  Delete an item and all related data
+*/
+DROP PROCEDURE IF EXISTS sp_delete_item;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_item(IN p_itemId INT)
+BEGIN
+
+    DECLARE itemHistoryId INT;
+    SELECT itemHistoryId INTO itemHistoryId FROM `ItemHistory` WHERE item_itemID = p_itemId;
+    CALL sp_delete_itemHistory(itemHistoryId);
+    
+    DELETE FROM `ItemLot` WHERE item_itemID = p_itemId;
+    DELETE FROM `Item` WHERE itemID = p_itemId;
+END$$
+DELIMITER ;
+
+/* SP10 : sp_delete_itemHistory(p_itemHistoryId)
+  Delete an itemHistory and all related data
+*/
+DROP PROCEDURE IF EXISTS sp_delete_itemHistory;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_itemHistory(IN p_itemHistoryId INT)
+BEGIN
+    DELETE FROM `ItemHistory` WHERE item_itemID = p_itemHistoryId;
+END$$
+DELIMITER ;
+
+/* SP11 : sp_delete_location(p_locationId)
+  Delete a location and all related data, set session.location_locationId to NULL
+*/
+DROP PROCEDURE IF EXISTS sp_delete_location;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_location(IN  p_locationId INT)
+BEGIN
+    UPDATE `Session` SET location_locationId = NULL WHERE location_locationId = p_locationId;
+    DELETE FROM `Location` WHERE locationId = p_locationId;
+END$$
+DELIMITER ;
+
+/* SP12 : sp_delete_lot(lotId)
+  Delete a lot and all related data, loop through all bids and delete them using the dedicated procedure
+*/
+DROP PROCEDURE IF EXISTS sp_delete_lot;
+DELIMITER $$
+
+CREATE PROCEDURE sp_delete_lot(IN p_lotId INT)
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE bidId INT;
+    DECLARE bid_cursor CURSOR FOR
+        SELECT bidId FROM `Bid` WHERE lot_lotId = p_lotId;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    -- First, remove item-lot links
+    DELETE FROM `ItemLot` WHERE lot_lotId = p_lotId;
+    
+    -- Remove session-lot links
+    DELETE FROM `SessionLot` WHERE lot_lotId = p_lotId;
+
+    -- Delete each bid associated with this lot using the dedicated SP
+    OPEN bid_cursor;
+    bid_loop: LOOP
+        FETCH bid_cursor INTO bidId;
+        IF done THEN
+            LEAVE bid_loop;
+        END IF;
+        CALL sp_delete_bid(bidId);
+    END LOOP;
+    CLOSE bid_cursor;
+
+    -- Finally, remove the lot itself
+    DELETE FROM Lot WHERE lotId = p_lotId;
+END$$
+
+DELIMITER ;
+
+/* SP13 : sp_delete_machineCategory(p_machineCategoryId)
+  Delete an itemHistory and all related data, set item.machineCategory_machineCategoryId to NULL
+*/
+DROP PROCEDURE IF EXISTS sp_delete_machineCategory;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_machineCategory(IN p_machineCategoryId INT)
+BEGIN
+    UPDATE `Item` SET machineCategory_machineCategoryId = NULL WHERE machineCategory_machineCategoryId = p_machineCategoryId;
+    UPDATE `ItemHistory` SET machineCategory_machineCategoryId = NULL WHERE machineCategory_machineCategoryId = p_machineCategoryId;
+    DELETE FROM `MachineCategory` WHERE machineCategoryId = p_machineCategoryId;
+END$$
+DELIMITER ;
+
+
+/* SP14 : sp_delete_muscleCategory(p_muscleCategoryId)
+  Delete an itemHistory and all related data, set item.muscleCategory_muscleCategoryId to NULL, 
+  set itemHistory.muscleCategory_muscleCategoryId to NULL, 
+  set muscleCategory.parentMuscleCategoryId to NULL
+*/
+DROP PROCEDURE IF EXISTS sp_delete_muscleCategory;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_muscleCategory(IN p_muscleCategoryId INT)
+BEGIN
+    UPDATE `Item` SET muscleCategory_muscleCategoryId = NULL WHERE muscleCategory_muscleCategoryId = p_muscleCategoryId;
+    UPDATE `ItemHistory` SET muscleCategory_muscleCategoryId = NULL WHERE muscleCategory_muscleCategoryId = p_muscleCategoryId;
+    UPDATE `MuscleCategory` SET parentMuscleCategoryId = NULL WHERE parentMuscleCategoryId = p_muscleCategoryId;
+    DELETE FROM `MuscleCategory` WHERE muscleCategoryId = p_muscleCategoryId;
+END$$
+DELIMITER ;
+
+
+/* SP15 : sp_delete_organization(p_organizationId)
+  Delete an organization and all related data, set session.organization_organizationId to NULL
+*/
+DROP PROCEDURE IF EXISTS sp_delete_organization;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_organization(IN p_organizationId INT)
+BEGIN
+    UPDATE `Session` SET organization_organizationId = NULL WHERE organization_organizationId = p_organizationId;
+    DELETE FROM `Organization` WHERE organizationId = p_organizationId;
+
+END$$
+DELIMITER ;
+
+/* SP16 : sp_delete_participant(p_participantId)
+  Delete a participant and all related data, loop through all bids and delete them using the dedicated procedure
+*/
+DROP PROCEDURE IF EXISTS sp_delete_participant;
+DELIMITER $$
+
+CREATE PROCEDURE sp_delete_participant(IN p_participantId INT)
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE bidId INT;
+    DECLARE bid_cursor CURSOR FOR
+        SELECT bidId FROM `Bid` WHERE participant_participantId = p_participantId;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    -- Remove links to sessions
+    DELETE FROM `ParticipantSession` WHERE participant_participantId = p_participantId;
+
+    -- Delete each bid associated with this participant using the dedicated SP
+    OPEN bid_cursor;
+    bid_loop: LOOP
+        FETCH bid_cursor INTO bidId;
+        IF done THEN
+            LEAVE bid_loop;
+        END IF;
+        CALL sp_delete_bid(bidId);
+    END LOOP;
+    CLOSE bid_cursor;
+
+    -- Finally, delete the participant
+    DELETE FROM `Participant` WHERE participantId = p_participantId;
+END$$
+
+DELIMITER ;
+
+
+/* SP17 : sp_delete_person(p_personId)
+  Delete a person and all related data
+*/
+DROP PROCEDURE IF EXISTS sp_delete_person;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_person(IN p_personId INT)
+BEGIN
+    DECLARE participantId INT;
+    DECLARE auctioneerId INT;
+
+    -- Declarations must come before any executable statements
+    SELECT participantId INTO participantId FROM `Participant` WHERE person_personId = p_personId;
+    SELECT auctioneerId INTO auctioneerId FROM `Auctioneer` WHERE person_personId = p_personId;
+
+    IF participantId IS NOT NULL THEN
+        CALL sp_delete_participant(participantId);
+    END IF;
+
+    IF auctioneerId IS NOT NULL THEN
+        CALL sp_delete_auctioneer(auctioneerId);
+    END IF;
+
+    DELETE FROM `Person` WHERE personId = p_personId;
+END$$
+DELIMITER ;
+
+/* SP18 : sp_delete_timeSlot(timeSlotId)
+  Delete a timeSlot and all related data
+*/
+DROP PROCEDURE IF EXISTS sp_delete_timeSlot;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_timeSlot(IN p_timeSlotId INT)
+BEGIN
+    UPDATE `Session` SET timeSlot_timeSlotId = NULL WHERE timeSlot_timeSlotId = p_timeSlotId;
+    DELETE FROM `TimeSlot` WHERE timeSlotId = p_timeSlotId;
+END$$
+DELIMITER ;
+
+
+/* SP18 : sp_delete_transaction(p_transactionId)
+  Delete a transaction and all related data
+*/
+DROP PROCEDURE IF EXISTS sp_delete_transaction;
+DELIMITER $$
+CREATE PROCEDURE sp_delete_transaction(IN p_transactionId INT)
+BEGIN
+    DELETE FROM `Transaction` WHERE transactionId = p_transactionId;
+END$$
+DELIMITER ;
 
 
 

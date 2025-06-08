@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `ParticipantSession` (
 -- CREATE TABLE IF NOT EXISTS Auctioneer
 DROP TABLE IF EXISTS `Auctioneer`;
 CREATE TABLE IF NOT EXISTS `Auctioneer` (
-	aucId INT PRIMARY KEY AUTO_INCREMENT,
+	auctonieerId INT PRIMARY KEY AUTO_INCREMENT,
 	person_personID INT NOT NULL,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -107,15 +107,15 @@ CREATE TABLE IF NOT EXISTS `Session` (
 	sessionId INT PRIMARY KEY AUTO_INCREMENT,
 	sessionName VARCHAR(100),
 	sessionState SET('complete', 'new', 'canceled', 'scheduled', 'active') DEFAULT 'new',
-	location_locationId INT NOT NULL,
-	organization_orgId INT NOT NULL,
-	auctioneer_aucId INT,
+	location_locationId INT,
+	organization_orgId INT,
+	auctioneer_auctonieerId INT,
 	timeslot_timeSlotId INT,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY (location_locationId) REFERENCES `Location` (locationId),
 	FOREIGN KEY (organization_orgId) REFERENCES `Organization` (orgId),
-	FOREIGN KEY (auctioneer_aucId) REFERENCES `Auctioneer` (aucId),
+	FOREIGN KEY (auctioneer_auctonieerId) REFERENCES `Auctioneer` (auctonieerId),
 	FOREIGN KEY (timeslot_timeSlotId) REFERENCES `TimeSlot` (timeSlotId)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS `Item` (
 	itemPrice DECIMAL(10, 2),
 	itemCondition SET('used', 'new', 'partially used'),
 	itemState SET('sold', 'in auction', 'new'),
-	machineCategory_machineCategoryId INT NOT NULL,
+	machineCategory_machineCategoryId INT NULL,
 	muscleCategory_muscleCategoryId INT,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS `ItemHistory` (
 	itemNote TEXT,
 	itemParticipatedInBid BOOLEAN,
 	itemSoldInBid BOOLEAN,
-	machineCategory_machineCategoryId INT NOT NULL,
+	machineCategory_machineCategoryId INT,
 	muscleCategory_muscleCategoryId INT,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -202,6 +202,23 @@ CREATE TABLE IF NOT EXISTS `Bid` (
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY (participant_participantID) REFERENCES Participant (participantID),
 	FOREIGN KEY (session_sessionId, lot_lotId) REFERENCES SessionLot (session_sessionId, lot_lotID)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+-- CREATE TABLE IF NOT EXISTS Transaction
+DROP TABLE IF EXISTS `Transaction`;
+CREATE TABLE IF NOT EXISTS `Transaction` (
+	transactionId INT PRIMARY KEY AUTO_INCREMENT,
+	session_sessionId INT NOT NULL,
+	lot_lotId INT NOT NULL,
+	transactionPrice DECIMAL(10, 2) NOT NULL,
+	participant_participantID INT,
+	bid_bidId INT NULL,
+	transactionState SET('success', 'failed', 'pending'),
+	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	FOREIGN KEY (bid_bidId) REFERENCES Bid (bidId),
+	FOREIGN KEY (participant_participantID) REFERENCES Participant (participantID),
+	FOREIGN KEY (session_sessionId, lot_lotId) REFERENCES SessionLot (session_sessionId, lot_lotId)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 

@@ -5,22 +5,23 @@ USE ipm_bidding_system;
 SET FOREIGN_KEY_CHECKS=0;
 
 -- Delete data in the right order (child tables first)
-TRUNCATE TABLE Bid;
-TRUNCATE TABLE ItemHistory;
-TRUNCATE TABLE ItemLot;
-TRUNCATE TABLE SessionLot;
-TRUNCATE TABLE ParticipantSession;
-TRUNCATE TABLE Participant;
-TRUNCATE TABLE Auctioneer;
-TRUNCATE TABLE Session;
-TRUNCATE TABLE Lot;
-TRUNCATE TABLE Item;
-TRUNCATE TABLE Person;
-TRUNCATE TABLE Organization;
-TRUNCATE TABLE Location;
-TRUNCATE TABLE TimeSlot;
-TRUNCATE TABLE MachineCategory;
-TRUNCATE TABLE MuscleCategory;
+TRUNCATE TABLE `Bid`;
+TRUNCATE TABLE `Transaction`;
+TRUNCATE TABLE `ItemHistory`;
+TRUNCATE TABLE `ItemLot`;
+TRUNCATE TABLE `SessionLot`;
+TRUNCATE TABLE `ParticipantSession`;
+TRUNCATE TABLE `Participant`;
+TRUNCATE TABLE `Auctioneer`;
+TRUNCATE TABLE `Session`;
+TRUNCATE TABLE `Lot`;
+TRUNCATE TABLE `Item`;
+TRUNCATE TABLE `Person`;
+TRUNCATE TABLE `Organization`;
+TRUNCATE TABLE `Location`;
+TRUNCATE TABLE `TimeSlot`;
+TRUNCATE TABLE `MachineCategory`;
+TRUNCATE TABLE `MuscleCategory`;
 
 -- Enable FK checks again
 SET FOREIGN_KEY_CHECKS=1;
@@ -217,7 +218,7 @@ itemParticipatedInBid, itemSoldInBid, machineCategory_machineCategoryId, muscleC
 
 
 -- // USE Procedure to add a SESSION
--- // CALL sp_criar_leilao(sessionName, location_locationId, organization_orgId, auctioneer_aucId, timeslot_timeSlotId);
+-- // CALL sp_criar_leilao(sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId);
 CALL sp_criar_leilao('Session1', 1, 1, 1, 1);
 CALL sp_criar_leilao('Session2', 2, 2, 2, 2);
 CALL sp_criar_leilao('Session3', 3, 3, 1, 3);
@@ -234,7 +235,6 @@ CALL sp_criar_leilao('Session10', 10, 2, 1, 2);
 
 CALL sp_adicionar_participante(1, 1);
 CALL sp_adicionar_participante(1, 2);
-CALL sp_adicionar_participante(2, 1);
 CALL sp_adicionar_participante(2, 1);
 CALL sp_adicionar_participante(5, 5);
 CALL sp_adicionar_participante(6, 6);
