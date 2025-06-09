@@ -62,7 +62,7 @@ INSERT INTO `Location` (locationCountry, locationCity, locationAddress, location
 ('Country19', 'City19', 'Address19', '2955-201'),
 ('Country20', 'City20', 'Address20', '2955-201');
 
-INSERT INTO `Organization` (orgName) VALUES 
+INSERT INTO `Organization` (organizationName) VALUES 
 ('Organization1'),
 ('Organization2'),
 ('Organization3'),
@@ -218,7 +218,7 @@ itemParticipatedInBid, itemSoldInBid, machineCategory_machineCategoryId, muscleC
 
 
 -- // USE Procedure to add a SESSION
--- // CALL sp_criar_leilao(sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId);
+-- // CALL sp_criar_leilao(sessionName, location_locationId, organization_organizationId, auctioneer_auctioneerId, timeslot_timeSlotId);
 CALL sp_criar_leilao('Session1', 1, 1, 1, 1);
 CALL sp_criar_leilao('Session2', 2, 2, 2, 2);
 CALL sp_criar_leilao('Session3', 3, 3, 1, 3);

@@ -22,13 +22,13 @@ DROP PROCEDURE IF EXISTS sp_criar_leilao;
 DELIMITER $$
 CREATE PROCEDURE sp_criar_leilao(IN sessionName VARCHAR(100), 
         IN location_locationId INT,
-        IN organization_orgId INT,
-        IN auctioneer_auctonieerId INT,
+        IN organization_organizationId INT,
+        IN auctioneer_auctioneerId INT,
         IN timeslot_timeSlotId INT)
 BEGIN
 
-    INSERT INTO Session (sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId)
-    VALUES (sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId);
+    INSERT INTO Session (sessionName, location_locationId, organization_organizationId, auctioneer_auctioneerId, timeslot_timeSlotId)
+    VALUES (sessionName, location_locationId, organization_organizationId, auctioneer_auctioneerId, timeslot_timeSlotId);
 END$$
 DELIMITER ; 
 
@@ -100,12 +100,12 @@ BEGIN
 
   DECLARE newSessionId INT;
 
-  INSERT INTO `Session` (sessionName, location_locationId, organization_orgId, auctioneer_auctonieerId, timeslot_timeSlotId)
+  INSERT INTO `Session` (sessionName, location_locationId, organization_organizationId, auctioneer_auctioneerId, timeslot_timeSlotId)
   SELECT 
     CONCAT(sessionName, '  --- COPIA (a preencher)'),
     location_locationId,
-    organization_orgId,
-    auctioneer_auctonieerId,
+    organization_organizationId,
+    auctioneer_auctioneerId,
     timeslot_timeSlotId
   FROM `Session`
   WHERE sessionId = sessionId;
@@ -145,9 +145,9 @@ DELIMITER $$
 CREATE PROCEDURE sp_delete_session(IN p_sessionId INT)
 BEGIN
     DECLARE done INT DEFAULT FALSE;
-    DECLARE bidId INT;
+    DECLARE v_bidId INT;
     DECLARE bid_cursor CURSOR FOR
-        SELECT bidId FROM Bid WHERE session_sessionId = p_sessionId;
+        SELECT `bidId` FROM `Bid` WHERE `session_sessionId` = `p_sessionId`;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
     
@@ -155,11 +155,12 @@ BEGIN
     -- Loop through all bids and delete them using the dedicated procedure
     OPEN bid_cursor;
     bid_loop: LOOP
-        FETCH bid_cursor INTO bidId;
+        FETCH bid_cursor INTO v_bidId;
+        
         IF done THEN
             LEAVE bid_loop;
         END IF;
-        CALL sp_delete_bid(bidId);
+        CALL sp_delete_bid(v_bidId);
     END LOOP;
     CLOSE bid_cursor;
 
@@ -173,13 +174,13 @@ DELIMITER ;
 
 
 /* SP7 : sp_delete_auctioneer(auctioneerId)
- Delete an auctioneer and all related data, set session.auctioneer_auctonieerId to NULL
+ Delete an auctioneer and all related data, set session.auctioneer_auctioneerId to NULL
 */
 DROP PROCEDURE IF EXISTS sp_delete_auctioneer;
 DELIMITER $$
 CREATE PROCEDURE sp_delete_auctioneer(IN p_auctioneerId INT)
 BEGIN
-    UPDATE `Session` SET auctioneer_auctonieerId = NULL WHERE auctioneer_auctonieerId = p_auctioneerId;
+    UPDATE `Session` SET auctioneer_auctioneerId = NULL WHERE auctioneer_auctioneerId = p_auctioneerId;
     DELETE FROM `Auctioneer` WHERE auctioneerId = p_auctioneerId;
 END$$
 DELIMITER ;
@@ -205,9 +206,10 @@ DELIMITER $$
 CREATE PROCEDURE sp_delete_item(IN p_itemId INT)
 BEGIN
 
-    DECLARE itemHistoryId INT;
-    SELECT itemHistoryId INTO itemHistoryId FROM `ItemHistory` WHERE item_itemID = p_itemId;
-    CALL sp_delete_itemHistory(itemHistoryId);
+    DECLARE v_itemHistoryId INT;
+    SELECT itemHistoryId INTO v_itemHistoryId FROM `ItemHistory` WHERE item_itemID = p_itemId;
+
+    CALL sp_delete_itemHistory(v_itemHistoryId);
     
     DELETE FROM `ItemLot` WHERE item_itemID = p_itemId;
     DELETE FROM `Item` WHERE itemID = p_itemId;
@@ -221,7 +223,7 @@ DROP PROCEDURE IF EXISTS sp_delete_itemHistory;
 DELIMITER $$
 CREATE PROCEDURE sp_delete_itemHistory(IN p_itemHistoryId INT)
 BEGIN
-    DELETE FROM `ItemHistory` WHERE item_itemID = p_itemHistoryId;
+    DELETE FROM `ItemHistory` WHERE itemHistoryId = p_itemHistoryId;
 END$$
 DELIMITER ;
 
@@ -246,27 +248,25 @@ DELIMITER $$
 CREATE PROCEDURE sp_delete_lot(IN p_lotId INT)
 BEGIN
     DECLARE done INT DEFAULT 0;
-    DECLARE bidId INT;
+    DECLARE v_bidId INT;
     DECLARE bid_cursor CURSOR FOR
         SELECT bidId FROM `Bid` WHERE lot_lotId = p_lotId;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
 
-    -- First, remove item-lot links
-    DELETE FROM `ItemLot` WHERE lot_lotId = p_lotId;
-    
-    -- Remove session-lot links
-    DELETE FROM `SessionLot` WHERE lot_lotId = p_lotId;
-
     -- Delete each bid associated with this lot using the dedicated SP
     OPEN bid_cursor;
     bid_loop: LOOP
-        FETCH bid_cursor INTO bidId;
+        FETCH bid_cursor INTO v_bidId;
         IF done THEN
             LEAVE bid_loop;
         END IF;
-        CALL sp_delete_bid(bidId);
+        CALL sp_delete_bid(v_bidId);
     END LOOP;
     CLOSE bid_cursor;
+
+    
+    DELETE FROM `ItemLot` WHERE lot_lotId = p_lotId;
+    DELETE FROM `SessionLot` WHERE lot_lotId = p_lotId;
 
     -- Finally, remove the lot itself
     DELETE FROM Lot WHERE lotId = p_lotId;
@@ -327,24 +327,25 @@ DELIMITER $$
 CREATE PROCEDURE sp_delete_participant(IN p_participantId INT)
 BEGIN
     DECLARE done INT DEFAULT 0;
-    DECLARE bidId INT;
+    DECLARE v_bidId INT;
     DECLARE bid_cursor CURSOR FOR
         SELECT bidId FROM `Bid` WHERE participant_participantId = p_participantId;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
 
-    -- Remove links to sessions
-    DELETE FROM `ParticipantSession` WHERE participant_participantId = p_participantId;
-
+    
     -- Delete each bid associated with this participant using the dedicated SP
     OPEN bid_cursor;
     bid_loop: LOOP
-        FETCH bid_cursor INTO bidId;
+        FETCH bid_cursor INTO v_bidId;
         IF done THEN
             LEAVE bid_loop;
         END IF;
-        CALL sp_delete_bid(bidId);
+        CALL sp_delete_bid(v_bidId);
     END LOOP;
     CLOSE bid_cursor;
+
+    -- Remove links to sessions
+    DELETE FROM `ParticipantSession` WHERE participant_participantId = p_participantId;
 
     -- Finally, delete the participant
     DELETE FROM `Participant` WHERE participantId = p_participantId;
@@ -360,19 +361,19 @@ DROP PROCEDURE IF EXISTS sp_delete_person;
 DELIMITER $$
 CREATE PROCEDURE sp_delete_person(IN p_personId INT)
 BEGIN
-    DECLARE participantId INT;
-    DECLARE auctioneerId INT;
+    DECLARE v_participantId INT;
+    DECLARE v_auctioneerId INT;
 
     -- Declarations must come before any executable statements
-    SELECT participantId INTO participantId FROM `Participant` WHERE person_personId = p_personId;
-    SELECT auctioneerId INTO auctioneerId FROM `Auctioneer` WHERE person_personId = p_personId;
+    SELECT participantId INTO v_participantId FROM `Participant` WHERE person_personId = p_personId;
+    SELECT auctioneerId INTO v_auctioneerId FROM `Auctioneer` WHERE person_personId = p_personId;
 
-    IF participantId IS NOT NULL THEN
-        CALL sp_delete_participant(participantId);
+    IF v_participantId IS NOT NULL THEN
+        CALL sp_delete_participant(v_participantId);
     END IF;
 
-    IF auctioneerId IS NOT NULL THEN
-        CALL sp_delete_auctioneer(auctioneerId);
+    IF v_auctioneerId IS NOT NULL THEN
+        CALL sp_delete_auctioneer(v_auctioneerId);
     END IF;
 
     DELETE FROM `Person` WHERE personId = p_personId;

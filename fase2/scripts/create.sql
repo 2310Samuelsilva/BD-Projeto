@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS `Location` (
 -- CREATE TABLE IF NOT EXISTS Organization
 DROP TABLE IF EXISTS `Organization`;
 CREATE TABLE IF NOT EXISTS `Organization` (
-	orgId INT PRIMARY KEY AUTO_INCREMENT, 
-	orgName VARCHAR(50) NOT NULL, 
+	organizationId INT PRIMARY KEY AUTO_INCREMENT, 
+	organizationName VARCHAR(50) NOT NULL, 
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `ParticipantSession` (
 -- CREATE TABLE IF NOT EXISTS Auctioneer
 DROP TABLE IF EXISTS `Auctioneer`;
 CREATE TABLE IF NOT EXISTS `Auctioneer` (
-	auctonieerId INT PRIMARY KEY AUTO_INCREMENT,
+	auctioneerId INT PRIMARY KEY AUTO_INCREMENT,
 	person_personID INT NOT NULL,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -108,14 +108,14 @@ CREATE TABLE IF NOT EXISTS `Session` (
 	sessionName VARCHAR(100),
 	sessionState SET('complete', 'new', 'canceled', 'scheduled', 'active') DEFAULT 'new',
 	location_locationId INT,
-	organization_orgId INT,
-	auctioneer_auctonieerId INT,
+	organization_organizationId INT,
+	auctioneer_auctioneerId INT,
 	timeslot_timeSlotId INT,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY (location_locationId) REFERENCES `Location` (locationId),
-	FOREIGN KEY (organization_orgId) REFERENCES `Organization` (orgId),
-	FOREIGN KEY (auctioneer_auctonieerId) REFERENCES `Auctioneer` (auctonieerId),
+	FOREIGN KEY (organization_organizationId) REFERENCES `Organization` (organizationId),
+	FOREIGN KEY (auctioneer_auctioneerId) REFERENCES `Auctioneer` (auctioneerId),
 	FOREIGN KEY (timeslot_timeSlotId) REFERENCES `TimeSlot` (timeSlotId)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
