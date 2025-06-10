@@ -18,14 +18,18 @@ CALL sp_add_bid(200.00, 2, 1, 1);
 
 CALL sp_remover_leilao(1, 1);
 
+CALL sp_start_session(1);
+CALL sp_start_session(2);
 
-DROP PROCEDURE IF EXISTS sp_delete_session;
-DELIMITER $$
-CREATE PROCEDURE sp_delete_session(IN sessionId INT)
-BEGIN
-    DELETE FROM ParticipantSession WHERE session_sessionId = sessionId;
-    DELETE FROM Bid WHERE session_sessionId = sessionId;
-    DELETE FROM SessionLot WHERE session_sessionId = sessionId;
-    DELETE FROM `Session` WHERE sessionId = sessionId;
-END$$
-DELIMITER ;
+CALL sp_close_session(1);
+CALL sp_create_transactions(1);
+CALL sp_mark_lot_as_sold(1);
+
+CALL sp_cleanup_sessions_and_lots();
+
+SELECT bidId FROM Bid WHERE lot_lotId = 1 AND session_sessionId IN (SELECT sessionId FROM `vw_active_sessions`);
+CALL sp_delete_bid(2);
+CALL sp_delete_session(2);
+
+
+CALL sp_add_bid(999.00, 1, 2, 1);

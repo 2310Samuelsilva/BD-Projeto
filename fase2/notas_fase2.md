@@ -4,7 +4,7 @@
 
 - SessionLot para nao ter chave primaria unica mas sim composta
 - Adicionado createdAt e updatedAt em todas as tabelas para manter estado
-- Trocada coluna "bidPrice" para "bidValue"
+- Trocada coluna "bidPrice" para "bidAmount"
 - Melhorados os nomes dos atrbutos da tabela ItemHistory
 - Item MachineCategory pode ser null
 - Session organizatin e location podem ser null

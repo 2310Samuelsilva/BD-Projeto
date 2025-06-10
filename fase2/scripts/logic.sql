@@ -77,7 +77,7 @@ DROP PROCEDURE IF EXISTS sp_remover_leilao;
 DELIMITER $$
 CREATE PROCEDURE sp_remover_leilao(IN sessionId INT, IN forceDelete BOOLEAN)
 BEGIN
-        IF CanDeleteSession(sessionId) OR forceDelete THEN
+        IF fn_can_delete_session(sessionId) OR forceDelete THEN
                 CALL sp_delete_session(sessionId);
         ELSE
                 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Leilao nao pode ser removido';
@@ -192,8 +192,8 @@ DROP PROCEDURE IF EXISTS sp_delete_bid;
 DELIMITER $$
 CREATE PROCEDURE sp_delete_bid(IN p_bidId INT)
 BEGIN
-    DELETE FROM `Bid` WHERE bidId = p_bidId;
     UPDATE `Transaction` SET bid_bidId = NULL WHERE bid_bidId = p_bidId;
+    DELETE FROM `Bid` WHERE bidId = p_bidId;
 END$$
 DELIMITER ;
 
@@ -393,7 +393,7 @@ END$$
 DELIMITER ;
 
 
-/* SP18 : sp_delete_transaction(p_transactionId)
+/* SP19 : sp_delete_transaction(p_transactionId)
   Delete a transaction and all related data
 */
 DROP PROCEDURE IF EXISTS sp_delete_transaction;
@@ -403,6 +403,40 @@ BEGIN
     DELETE FROM `Transaction` WHERE transactionId = p_transactionId;
 END$$
 DELIMITER ;
+
+
+
+/* #########
+  Triggers
+  ######### */
+
+/* Diferente do enunciado pois uma session nao tem um valor mas sim o seu estado.
+   Trigger utilizado para registar mudanca de estado de uma sessão
+*/
+
+DROP TRIGGER IF EXISTS result_change;
+DELIMITER $$
+CREATE TRIGGER result_change AFTER UPDATE ON `Session` FOR EACH ROW
+BEGIN
+    INSERT INTO `tbl_logs` (session_sessionId, session_sessionName, sessionState_old, sessionState_new)
+    VALUES (NEW.sessionId, NEW.sessionName, OLD.sessionState, NEW.sessionState);
+END$$
+DELIMITER ; 
+
+
+/* 
+   Trigger utilizado para registar o apagar de uma sessao
+*/
+
+DROP TRIGGER IF EXISTS result_delete;
+DELIMITER $$
+CREATE TRIGGER result_delete AFTER DELETE ON `Session` FOR EACH ROW
+BEGIN
+    INSERT INTO `tbl_logs_delete` (session_sessionId, session_sessionName, logMessage)
+    VALUES (OLD.sessionId, OLD.sessionName, 'Session deleted');
+END$$
+DELIMITER ; 
+
 
 
 
@@ -426,7 +460,7 @@ DELIMITER ;
 -- View 4 : Taxa de sucesso (lotes vendidos vs. não vendidos) por sessão
 -- View 5 : Leiloeiros com mais sessões realizadas ou maior volume de vendas
 
--- Function 1 : IsItemOnActiveSession
+-- Function 1 : fn_isItemOnActiveSession
 -- Function 2 : 
 
 -- Procedure 1 : Get Lots for Item 
@@ -442,33 +476,48 @@ DELIMITER ;
 
 
 /*###########
-   Viewes
+   Views
 #############*/
 
-/* V1: ActiveSessions
+/* V1: vw_active_sessions
 List all active sessions
 */
 
-DROP VIEW IF EXISTS ActiveSessions;
-CREATE VIEW ActiveSessions AS 
+DROP VIEW IF EXISTS vw_active_sessions;
+CREATE VIEW vw_active_sessions AS 
 SELECT * FROM `Session` WHERE  sessionState = 'active';
 
 /*
-  V2: ParticipantDetails
+  V2: vw_participant_details
   List all participants details
 */
-DROP VIEW IF EXISTS ParticipantDetails;
-CREATE VIEW ParticipantDetails AS 
+DROP VIEW IF EXISTS vw_participant_details;
+CREATE VIEW vw_participant_details AS 
 SELECT 
   part.participantID AS "participantID",
   per.personName AS "participantName",
   per.personEmail AS "participantEmail",
   per.personNIF AS "participantNIF",
-  CalculateAge(per.personBirthDate) AS "participantAge",
+  fn_calculate_age(per.personBirthDate) AS "participantAge",
   per.personBirthDate AS "participantBirthDate",
   per.personGender AS "participantGender"
 FROM Participant part
 INNER JOIN `Person` per ON part.person_personID = per.personID;
+
+
+/*
+  V3: vw_active_lots
+  List all lots on Sale
+*/
+DROP VIEW IF EXISTS vw_active_lots;
+CREATE VIEW vw_active_lots AS
+SELECT 
+  lotId AS "lotId",
+  lotName AS "lotName",
+  lotState AS "lotState",
+  lotPrice AS "lotPrice"
+FROM Lot
+WHERE lotId IN (SELECT lot_lotID FROM `SessionLot` WHERE session_sessionId  IN (SELECT sessionId FROM `vw_active_sessions` WHERE sessionState = 'active'));
 
 
 
@@ -506,39 +555,257 @@ DELIMITER ;
 
 DROP PROCEDURE IF EXISTS sp_add_bid;
 DELIMITER $$
-CREATE PROCEDURE sp_add_bid(IN bidValue INT, IN participantId INT, IN sessionId INT, IN lotId INT)
+CREATE PROCEDURE sp_add_bid(IN bidAmount INT, IN participantId INT, IN sessionId INT, IN lotId INT)
 BEGIN
-    INSERT INTO Bid (bidValue, participant_participantId, session_sessionId, lot_lotId)
-    VALUES (bidValue, participantId, sessionId, lotId);
+    INSERT INTO Bid (bidAmount, participant_participantId, session_sessionId, lot_lotId)
+    VALUES (bidAmount, participantId, sessionId, lotId);
 END$$
 DELIMITER ;
 
+
+-- - SPXXX: Start a session
+-- Description: Start a session, set the state to active
+
+DROP PROCEDURE IF EXISTS sp_start_session;
+DELIMITER $$
+CREATE PROCEDURE sp_start_session(IN p_sessionId INT)
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_lotId INT;
+    DECLARE lotCursor CURSOR FOR
+        SELECT lot_lotId FROM `SessionLot` WHERE session_sessionId = p_sessionId;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Loop over all lots in the session and start them for sale
+    OPEN lotCursor;
+    loopLots: LOOP
+        FETCH lotCursor INTO v_lotId;
+        IF done THEN
+            LEAVE loopLots;
+        END IF;
+        CALL sp_start_lot_sale(v_lotId);
+    END LOOP;
+    CLOSE lotCursor;
+
+    -- Finally, mark the session as active
+    UPDATE `Session`
+    SET sessionState = 'active'
+    WHERE sessionId = p_sessionId;
+END$$
+DELIMITER ;
+
+
+-- - SPXXX: Close a session
+-- Description: Close a session, set the state to complete
+
+DROP PROCEDURE IF EXISTS sp_close_session;
+DELIMITER $$
+
+CREATE PROCEDURE sp_close_session(IN p_sessionId INT)
+BEGIN
+
+    -- Finally, mark the session as complete
+    UPDATE `Session`
+    SET sessionState = 'complete'
+    WHERE sessionId = p_sessionId;
+
+    CALL sp_create_transactions(p_sessionId);
+
+    
+END$$
+
+DELIMITER ;
+
+
+/* SPXXX: Create transactions
+  Description: Create transactions for a session
+  - For each lot in the session, if it has a bid related to it, mark lot as sold and create a transaction for it.
+*/
+
+DROP PROCEDURE IF EXISTS sp_create_transactions;
+DELIMITER $$
+CREATE PROCEDURE sp_create_transactions(IN p_sessionId INT)
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_lotId INT;
+    DECLARE v_maxBidId INT;
+    DECLARE lotCursor CURSOR FOR 
+        SELECT DISTINCT lot_lotId FROM Bid WHERE session_sessionId = p_sessionId;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN lotCursor;
+    transaction_loop: LOOP
+        FETCH lotCursor INTO v_lotId;
+        IF done THEN
+            LEAVE transaction_loop;
+        END IF;
+
+        -- Find the highest bid for the lot in this session
+        SELECT bidId INTO v_maxBidId
+        FROM Bid 
+        WHERE session_sessionId = p_sessionId AND lot_lotId = v_lotId
+        ORDER BY bidAmount DESC
+        LIMIT 1;
+
+        -- Create transaction for highest bid
+        IF v_maxBidId IS NOT NULL THEN
+            INSERT INTO `Transaction` (session_sessionId, lot_lotId, transactionAmount, participant_participantID, bid_bidId) 
+            VALUES (p_sessionId, v_lotId, (SELECT bidAmount FROM Bid WHERE bidId = v_maxBidId), (SELECT participant_participantID FROM Bid WHERE bidId = v_maxBidId), v_maxBidId);
+
+            CALL sp_mark_lot_as_sold(v_lotId);
+        END IF;
+    END LOOP;
+    CLOSE lotCursor;
+END$$
+DELIMITER ;
+
+
+
+
+
+/*
+  SPXXX: Close a lot
+  Description: Close a lot, set the state to sold
+  - Remove lot from sessions that are not complete
+  - Remove item from lots that are in sale
+  - Mark items as sold
+  - Mark lot as Sold
+
+*/
+DROP PROCEDURE IF EXISTS sp_mark_lot_as_sold;
+DELIMITER $$
+CREATE PROCEDURE sp_mark_lot_as_sold(IN p_lotId INT)
+BEGIN
+
+    
+
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_bidId INT;
+    DECLARE bidCursor CURSOR FOR 
+        SELECT bidId FROM Bid WHERE lot_lotId = p_lotId AND session_sessionId IN (SELECT sessionId FROM `vw_active_sessions`);
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Remove bid related to lot
+    OPEN bidCursor;
+    bid_loop: LOOP
+        FETCH bidCursor INTO v_bidId;
+        IF done THEN
+            LEAVE bid_loop;
+        END IF;
+        CALL sp_delete_bid(v_bidId);
+    END LOOP;
+    CLOSE bidCursor;
+
+
+    -- Mark items as sold
+    UPDATE `Item`
+    SET itemState = 'sold'
+    WHERE itemID IN (
+        SELECT item_itemID
+        FROM ItemLot
+        WHERE lot_lotId = p_lotId
+    );
+    
+    -- Mark lot as sold
+    UPDATE `Lot`
+    SET lotState = 'sold'
+    WHERE lotId = p_lotId;
+
+    
+    -- Remove item from lots that are in sale
+    DELETE FROM `ItemLot`
+    WHERE lot_lotId = p_lotId
+      AND lot_lotId IN (
+          SELECT lotId
+          FROM `vw_active_lots`
+      );
+
+    
+    -- Remove transactions related to lot & session
+    DELETE FROM `Transaction`
+    WHERE lot_lotId = p_lotId
+      AND session_sessionId IN (
+          SELECT sessionId
+          FROM `vw_active_sessions`
+      );
+
+    -- Remove lot from sessions that are not complete
+    DELETE FROM `SessionLot`
+    WHERE lot_lotId = p_lotId
+      AND session_sessionId IN (
+          SELECT sessionId
+          FROM `vw_active_sessions`
+      );
+
+    CALL sp_cleanup_sessions_and_lots();
+    
+END$$
+DELIMITER ;
+
+
+/*
+  SPXXX: Start a lot for sale
+  Description: Start a lot for sale, set the state to for_sale
+
+*/
+DROP PROCEDURE IF EXISTS sp_start_lot_sale;
+DELIMITER $$
+CREATE PROCEDURE sp_start_lot_sale(IN p_lotId INT)
+BEGIN
+   
+    -- Mark items as on_sale
+    UPDATE Item
+    SET itemState = 'on_sale'
+    WHERE itemID IN (
+        SELECT item_itemID
+        FROM ItemLot
+        WHERE lot_lotId = p_lotId
+    );
+  
+    -- Mark lot as on_sale
+    UPDATE Lot
+    SET lotState = 'on_sale'
+    WHERE lotId = p_lotId;
+    
+END$$
+DELIMITER ;
+
+
+DROP PROCEDURE IF EXISTS sp_cleanup_sessions_and_lots;
+DELIMITER $$
+
+CREATE PROCEDURE sp_cleanup_sessions_and_lots()
+BEGIN
+  -- Mark sessions as unscheduled if they no longer have lots
+  UPDATE `Session` s
+  SET s.sessionState = 'unscheduled'
+  WHERE NOT EXISTS (
+    SELECT 1 FROM SessionLot sl WHERE sl.session_sessionId = s.sessionId
+  );
+
+  -- Mark lots as not sold if no longer part of any session
+  UPDATE `Lot` l
+  SET l.lotState = 'not_sold'
+  WHERE NOT EXISTS (
+    SELECT 1 FROM SessionLot sl WHERE sl.lot_lotId = l.lotId
+  );
+END$$
+DELIMITER ;
 
 
 /*###########
     Functions
 #############*/
 
-/* TO COMPLETE NOT WORKING */
-DROP FUNCTION IF EXISTS IsItemOnActiveSession;
-DELIMITER $$
-CREATE FUNCTION IsItemOnActiveSession(itemId INT, sessionId INT) RETURNS BOOLEAN
-DETERMINISTIC
-READS SQL DATA
-BEGIN
-    RETURN EXISTS (SELECT * FROM ItemLot WHERE item_itemId = itemId AND session_sessionId = sessionId);
-END$$
-DELIMITER ;
 
 
-
-/* F1: CanDeleteSession
+/* F1: fn_can_delete_session
 Return TRUE if the session can be deleted
 */
 
-DROP FUNCTION IF EXISTS CanDeleteSession;
+DROP FUNCTION IF EXISTS fn_can_delete_session;
 DELIMITER $$
-CREATE FUNCTION CanDeleteSession(sessionId INT) RETURNS BOOLEAN
+CREATE FUNCTION fn_can_delete_session(sessionId INT) RETURNS BOOLEAN
 DETERMINISTIC
 READS SQL DATA
 BEGIN
@@ -577,13 +844,12 @@ END$$
 DELIMITER ;
 
 
-/* F1: CanDeleteSession
-Return TRUE if the session can be deleted
+/* F2: fn_calculate_age
+Return the age of a person
 */
-
-DROP FUNCTION IF EXISTS CalculateAge;
+DROP FUNCTION IF EXISTS fn_calculate_age;
 DELIMITER $$
-CREATE FUNCTION CalculateAge(birthDate DATE) RETURNS INT
+CREATE FUNCTION fn_calculate_age(birthDate DATE) RETURNS INT
 DETERMINISTIC
 BEGIN
     DECLARE age INT;
@@ -599,3 +865,20 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+
+/* TO COMPLETE NOT WORKING */
+DROP FUNCTION IF EXISTS fn_isItemOnActiveSession;
+DELIMITER $$
+CREATE FUNCTION fn_isItemOnActiveSession(itemId INT, sessionId INT) RETURNS BOOLEAN
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    RETURN EXISTS (SELECT * FROM ItemLot WHERE item_itemId = itemId AND session_sessionId = sessionId);
+END$$
+DELIMITER ;
+
+
+/* ##### 
+  TRIGGERS
+  #####*/

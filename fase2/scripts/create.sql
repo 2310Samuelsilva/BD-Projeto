@@ -106,7 +106,7 @@ DROP TABLE IF EXISTS `Session`;
 CREATE TABLE IF NOT EXISTS `Session` (
 	sessionId INT PRIMARY KEY AUTO_INCREMENT,
 	sessionName VARCHAR(100),
-	sessionState SET('complete', 'new', 'canceled', 'scheduled', 'active') DEFAULT 'new',
+	sessionState SET('complete', 'unscheduled', 'canceled', 'scheduled', 'active') DEFAULT 'unscheduled',
 	location_locationId INT,
 	organization_organizationId INT,
 	auctioneer_auctioneerId INT,
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS `Lot` (
 	lotId INT PRIMARY KEY AUTO_INCREMENT,
 	lotName VARCHAR(100),
 	lotPrice DECIMAL(10, 2) DEFAULT 0 CHECK (lotPrice >= 0),
-	lotState SET('sold', 'in auction', 'new'),
+	lotState SET('sold', 'on_sale', 'not_sold') DEFAULT 'not_sold',
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS `Item` (
 	itemName VARCHAR(30),
 	itemPrice DECIMAL(10, 2),
 	itemCondition SET('used', 'new', 'partially used'),
-	itemState SET('sold', 'in auction', 'new'),
+	itemState SET('sold', 'on_sale', 'new'),
 	machineCategory_machineCategoryId INT NULL,
 	muscleCategory_muscleCategoryId INT,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS `ItemHistory` (
 	itemName VARCHAR(30),
 	itemPrice DECIMAL(10, 2),
 	itemCondition SET('used', 'new', 'partially used'),
-	itemState SET('sold', 'in auction', 'new'),
+	itemState SET('sold', 'on_sale', 'new'),
 	itemNote TEXT,
 	itemParticipatedInBid BOOLEAN,
 	itemSoldInBid BOOLEAN,
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS `ItemHistory` (
 DROP TABLE IF EXISTS `Bid`;
 CREATE TABLE IF NOT EXISTS `Bid` (
 	bidId INT PRIMARY KEY AUTO_INCREMENT,
-	bidValue DECIMAL(10, 2) NOT NULL,
+	bidAmount DECIMAL(10, 2) NOT NULL,
 	participant_participantID INT NOT NULL,
 	session_sessionId INT NOT NULL,
 	lot_lotId INT NOT NULL,
@@ -210,10 +210,10 @@ CREATE TABLE IF NOT EXISTS `Transaction` (
 	transactionId INT PRIMARY KEY AUTO_INCREMENT,
 	session_sessionId INT NOT NULL,
 	lot_lotId INT NOT NULL,
-	transactionPrice DECIMAL(10, 2) NOT NULL,
+	transactionAmount DECIMAL(10, 2) NOT NULL,
 	participant_participantID INT,
-	bid_bidId INT NULL,
-	transactionState SET('success', 'failed', 'pending'),
+	bid_bidId INT,
+	transactionState SET('success', 'failed', 'pending') DEFAULT 'pending',
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY (bid_bidId) REFERENCES Bid (bidId),
@@ -221,6 +221,42 @@ CREATE TABLE IF NOT EXISTS `Transaction` (
 	FOREIGN KEY (session_sessionId, lot_lotId) REFERENCES SessionLot (session_sessionId, lot_lotId)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
+
+-- CREATE TABLE IF NOT EXISTS tbl_logs
+DROP TABLE IF EXISTS `tbl_logs`;
+CREATE TABLE IF NOT EXISTS `tbl_logs` (
+	logId INT PRIMARY KEY AUTO_INCREMENT,
+	session_sessionId INT,
+	session_sessionName VARCHAR(30),
+	sessionState_old VARCHAR(15),
+	sessionState_new VARCHAR(15),
+	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+
+-- CREATE TABLE IF NOT EXISTS tbl_delete_logs
+DROP TABLE IF EXISTS `tbl_delete_logs`;
+CREATE TABLE IF NOT EXISTS `tbl_delete_logs` (
+	logId INT PRIMARY KEY AUTO_INCREMENT,
+	session_sessionId INT,
+	session_sessionName VARCHAR(30),
+	logMessage VARCHAR(30) NOT NULL,
+	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+
+-- CREATE TABLE IF NOT EXISTS tbl_generic_logs
+DROP TABLE IF EXISTS `tbl_generic_logs`;
+CREATE TABLE IF NOT EXISTS `tbl_generic_logs` (
+	logId INT PRIMARY KEY AUTO_INCREMENT,
+	resourceType VARCHAR(30) NOT NULL,
+	logMessage TEXT NOT NULL,
+	relatedId INT,
+	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- Enable foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;

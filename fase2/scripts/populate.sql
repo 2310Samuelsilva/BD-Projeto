@@ -22,6 +22,9 @@ TRUNCATE TABLE `Location`;
 TRUNCATE TABLE `TimeSlot`;
 TRUNCATE TABLE `MachineCategory`;
 TRUNCATE TABLE `MuscleCategory`;
+TRUNCATE TABLE `tbl_logs`;
+TRUNCATE TABLE `tbl_delete_logs`;
+TRUNCATE TABLE `tbl_generic_logs`;
 
 -- Enable FK checks again
 SET FOREIGN_KEY_CHECKS=1;
@@ -150,26 +153,26 @@ INSERT INTO `MuscleCategory` (muscleCategoryName, parentMuscleCategoryId) VALUES
 ('quads', 2);
 
 INSERT INTO `Lot` (lotName, lotPrice, lotState) VALUES
-('Lot1', NULL, 'new'),
-('Lot2', NULL, 'new'),
-('Lot3', NULL, 'new'),
-('Lot4', NULL, 'new'),
-('Lot5', NULL, 'new'),
-('Lot6', NULL, 'new'),
-('Lot7', NULL, 'new'),
-('Lot8', NULL, 'new'),
-('Lot9', NULL, 'new'),
-('Lot10', NULL, 'new'),
-('Lot11', NULL, 'new'),
-('Lot12', NULL, 'new'),
-('Lot13', NULL, 'new'),
-('Lot14', NULL, 'new'),
-('Lot15', NULL, 'new'),
-('Lot16', NULL, 'new'),
-('Lot17', NULL, 'new'),
-('Lot18', NULL, 'new'),
-('Lot19', NULL, 'new'),
-('Lot20', NULL, 'new');
+('Lot1', NULL, 'not_sold'),
+('Lot2', NULL, 'not_sold'),
+('Lot3', NULL, 'not_sold'),
+('Lot4', NULL, 'not_sold'),
+('Lot5', NULL, 'not_sold'),
+('Lot6', NULL, 'not_sold'),
+('Lot7', NULL, 'not_sold'),
+('Lot8', NULL, 'not_sold'),
+('Lot9', NULL, 'not_sold'),
+('Lot10', NULL, 'not_sold'),
+('Lot11', NULL, 'not_sold'),
+('Lot12', NULL, 'not_sold'),
+('Lot13', NULL, 'not_sold'),
+('Lot14', NULL, 'not_sold'),
+('Lot15', NULL, 'not_sold'),
+('Lot16', NULL, 'not_sold'),
+('Lot17', NULL, 'not_sold'),
+('Lot18', NULL, 'not_sold'),
+('Lot19', NULL, 'not_sold'),
+('Lot20', NULL, 'not_sold');
 
 INSERT INTO `Item` (itemName, itemPrice, itemCondition, itemState, machineCategory_machineCategoryId, muscleCategory_muscleCategoryId) VALUES 
 ('Item1', 10.00, 'new', 'new', 1, 1),
@@ -263,6 +266,7 @@ CALL sp_add_lot_to_session(12, 3);
 -- CALL sp_add_item_to_lot(itemId, lotId);
 CALL sp_add_item_to_lot(1, 1);
 CALL sp_add_item_to_lot(2, 1);
+CALL sp_add_item_to_lot(2, 2);
 CALL sp_add_item_to_lot(3, 1);
 CALL sp_add_item_to_lot(4, 4);
 CALL sp_add_item_to_lot(5, 5);
@@ -283,6 +287,7 @@ CALL sp_add_item_to_lot(19, 19);
 CALL sp_add_item_to_lot(20, 20);
 
 -- // USE Procedure to add bid
--- CALL sp_add_bid(bidValue, participantId, sessionId, lotId);
+-- CALL sp_add_bid(bidAmount, participantId, sessionId, lotId);
 CALL sp_add_bid(100.00, 1, 1, 1);
 CALL sp_add_bid(200.00, 2, 1, 1);
+CALL sp_add_bid(200.00, 1, 2, 1);

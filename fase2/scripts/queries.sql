@@ -8,7 +8,7 @@ SELECT
     participantBirthDate AS "Data de Nascimento do Participante",
     participantGender AS "Genero do Participante",
     participantNIf AS "NIF do Participante"
- FROM ParticipantDetails WHERE participantGender='male';
+ FROM vw_participant_details WHERE participantGender='male';
 
 
 
@@ -22,14 +22,14 @@ SELECT
     participantBirthDate AS "Data de Nascimento do Participante",
     participantGender AS "Genero do Participante",
     participantNIf AS "NIF do Participante"
- FROM ParticipantDetails WHERE participantAge > 30;
+ FROM vw_participant_details WHERE participantAge > 30;
 
 
  --Q2.
  -- Listagem de Sessoes ativas e com mais de 3 lotes
 SELECT s.*
 FROM `Session` s
-WHERE s.sessionId IN (SELECT sessionId FROM ActiveSessions)
+WHERE s.sessionId IN (SELECT sessionId FROM vw_active_sessions)
   AND (
       SELECT COUNT(*)
       FROM SessionLot sl
