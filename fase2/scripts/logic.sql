@@ -1,24 +1,89 @@
 
+/*###########
+    Functions
+#############*/
+
+/* F1: fn_can_delete_session(sessionId) re
+ Description: Verifica se uma sessao pode ser excluida, caso nao tenha dependencias como participantes, bids, lotes
+*/
+
+DROP FUNCTION IF EXISTS fn_can_delete_session;
+DELIMITER $$
+CREATE FUNCTION fn_can_delete_session(sessionId INT) RETURNS BOOLEAN
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+  DECLARE dependentCount INT DEFAULT 0;
+
+  -- Check in ParticipantSession
+  SELECT COUNT(*) INTO dependentCount
+  FROM ParticipantSession
+  WHERE session_sessionId = sessionId;
+
+  IF dependentCount > 0 THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Check in Bid
+  SELECT COUNT(*) INTO dependentCount
+  FROM Bid
+  WHERE session_sessionId = sessionId;
+
+  IF dependentCount > 0 THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Check in SessionLot
+  SELECT COUNT(*) INTO dependentCount
+  FROM SessionLot
+  WHERE session_sessionId = sessionId;
+
+  IF dependentCount > 0 THEN
+    RETURN FALSE;
+  END IF;
+
+  -- If no dependencies found, session can be deleted
+  RETURN TRUE;
+END$$
+DELIMITER ;
 
 
+/* F2: fn_calculate_age(birthDate)
+Description: Calcula a idade a partir da data de nascimento
+*/
+DROP FUNCTION IF EXISTS fn_calculate_age;
+DELIMITER $$
+CREATE FUNCTION fn_calculate_age(birthDate DATE) RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE age INT;
+    SET age = YEAR(CURDATE()) - YEAR(birthDate);
+    
+    -- If the current date is before the birthday this year, subtract 1
+    IF (MONTH(CURDATE()) < MONTH(birthDate)) 
+       OR (MONTH(CURDATE()) = MONTH(birthDate) AND DAY(CURDATE()) < DAY(birthDate)) THEN
+        SET age = age - 1;
+    END IF;
+    
+    RETURN age;
+END$$
 
-
+DELIMITER ;
 
 /*######################
         ENUNCIADO
 ########################*/
 
 
-/* SP1 : sp_criar_leilao
-
+/* SP1 : sp_criar_leilao (sessionName, location_locationId, organization_organizationId, auctioneer_auctioneerId, timeslot_timeSlotId)
+ 
 Cria um novo leilão/evento, enviando todos os dados necessários à definição do mesmo;
 Criar uma nova SESSION.
 
-#IDEIA: Validar se existe uma sessao com a mesma localizacao e mesmo timeslot, nesse caso retornar erro
+# Melhoria futura: Validar se existe uma sessao com a mesma localizacao e mesmo timeslot, nesse caso retornar erro
 */
 
 DROP PROCEDURE IF EXISTS sp_criar_leilao; 
-
 DELIMITER $$
 CREATE PROCEDURE sp_criar_leilao(IN sessionName VARCHAR(100), 
         IN location_locationId INT,
@@ -33,11 +98,11 @@ END$$
 DELIMITER ; 
 
 
-/* SP2 :  sp_adicionar_participante(id_leilao, …)
+/* SP2 :  sp_adicionar_participante(participantId, sessionId)
 
 Adiciona uma pessoa à lista de participantes que irão fazer parte do leilão indicado;
 
-#IDEA: Validar se participante já está numa sessao ao mesmo tempo, nesse caso ignorar 
+# Melhoria futura: Validar se participante já está numa sessao ao mesmo tempo, nesse caso ignorar 
 */
 
 DROP PROCEDURE IF EXISTS sp_adicionar_participante; 
@@ -54,14 +119,34 @@ END$$
 DELIMITER ;
 
 
-/* SP3 : sp_criar_transacao(id_leilao, id_participante, …) 
+/* SP3 : sp_close_session (sessionId)
 
-Regista o resultado do participante no leilão/evento indicado;
+Fechar a sessão indicada, e criar as transações correspondentes aos leilões ativos nessa sessão.
+
 */
 
 
+DROP PROCEDURE IF EXISTS sp_close_session;
+DELIMITER $$
 
-/* SP4 : sp_remover_leilao(id_leilao, force, …) 
+CREATE PROCEDURE sp_close_session(IN p_sessionId INT)
+BEGIN
+
+    -- Finally, mark the session as complete
+    UPDATE `Session`
+    SET sessionState = 'complete'
+    WHERE sessionId = p_sessionId;
+
+    CALL sp_create_transactions(p_sessionId);
+
+    
+END$$
+
+DELIMITER ;
+
+
+
+/* SP4 : sp_remover_leilao(sessionId, forceDelete)
 
 Remove o leilão/evento identificado no parâmetro, nas seguintes circunstâncias:
 
@@ -87,7 +172,7 @@ DELIMITER ;
         
 
 
-/* SP5 :  sp_clonar_leilao(id_leilao, …) 
+/* SP5 :  sp_clonar_leilao(sessionId)
 
 Cria um novo leilão/evento com uma cópia de todos os dados existentes no leilão/evento indicada como parâmetro. 
 A única exceção é que, à descrição do leilão, deverá ser adicionada a string " --- COPIA (a preencher)".
@@ -95,10 +180,8 @@ A única exceção é que, à descrição do leilão, deverá ser adicionada a s
 
 DROP PROCEDURE IF EXISTS sp_clonar_leilao;
 DELIMITER $$
-CREATE PROCEDURE sp_clonar_leilao(IN sessionId INT)
+CREATE PROCEDURE sp_clonar_leilao(IN p_sessionId INT, OUT newSessionId INT)
 BEGIN
-
-  DECLARE newSessionId INT;
 
   INSERT INTO `Session` (sessionName, location_locationId, organization_organizationId, auctioneer_auctioneerId, timeslot_timeSlotId)
   SELECT 
@@ -108,25 +191,26 @@ BEGIN
     auctioneer_auctioneerId,
     timeslot_timeSlotId
   FROM `Session`
-  WHERE sessionId = sessionId;
+  WHERE sessionId = p_sessionId;
 
   SET newSessionId = LAST_INSERT_ID();
 
-  /*
-  Se for necessario incluir todos os dados relacionados
 
   INSERT INTO SessionLot (session_sessionId, lot_lotId)
   SELECT 
     newSessionId,
     lot_lotId
   FROM SessionLot
-  WHERE session_sessionId = sessionId;
+  WHERE session_sessionId = p_sessionId;
 
-  Adicionar outros
-  */
-  
-  -- Optionally return the new sessionId
-  SELECT newSessionId AS "Nova Sessao";
+
+  INSERT INTO ParticipantSession (participant_participantId, session_sessionId)
+  SELECT 
+    participant_participantId,
+    newSessionId
+  FROM ParticipantSession
+  WHERE session_sessionId = p_sessionId;
+
 END$$
 DELIMITER ;
 
@@ -135,7 +219,7 @@ DELIMITER ;
 #############*/
 
 
-/* SP6 : sp_delete_session(sessionId)
+/* SP6 : sp_delete_session (p_sessionId)
   Delete a session and all related data, loop through all bids and delete them using the dedicated procedure
 */
 
@@ -275,7 +359,8 @@ END$$
 DELIMITER ;
 
 /* SP13 : sp_delete_machineCategory(p_machineCategoryId)
-  Delete an itemHistory and all related data, set item.machineCategory_machineCategoryId to NULL
+  Delete machineCategory and all related data, set item.machineCategory_machineCategoryId to NULL, 
+  set itemHistory.machineCategory_machineCategoryId to NULL
 */
 DROP PROCEDURE IF EXISTS sp_delete_machineCategory;
 DELIMITER $$
@@ -289,9 +374,8 @@ DELIMITER ;
 
 
 /* SP14 : sp_delete_muscleCategory(p_muscleCategoryId)
-  Delete an itemHistory and all related data, set item.muscleCategory_muscleCategoryId to NULL, 
-  set itemHistory.muscleCategory_muscleCategoryId to NULL, 
-  set muscleCategory.parentMuscleCategoryId to NULL
+  Delete muscleCategory and all related data, set item.muscleCategory_muscleCategoryId to NULL, 
+  set itemHistory.muscleCategory_muscleCategoryId to NULL
 */
 DROP PROCEDURE IF EXISTS sp_delete_muscleCategory;
 DELIMITER $$
@@ -410,8 +494,10 @@ DELIMITER ;
   Triggers
   ######### */
 
-/* Diferente do enunciado pois uma session nao tem um valor mas sim o seu estado.
-   Trigger utilizado para registar mudanca de estado de uma sessão
+/* 
+  T1 : result_change
+  Diferente do enunciado pois uma session nao tem um valor mas sim o seu estado.
+  Trigger utilizado para registar mudanca de estado de uma sessão
 */
 
 DROP TRIGGER IF EXISTS result_change;
@@ -425,6 +511,7 @@ DELIMITER ;
 
 
 /* 
+  T2 : result_delete
    Trigger utilizado para registar o apagar de uma sessao
 */
 
@@ -432,7 +519,7 @@ DROP TRIGGER IF EXISTS result_delete;
 DELIMITER $$
 CREATE TRIGGER result_delete AFTER DELETE ON `Session` FOR EACH ROW
 BEGIN
-    INSERT INTO `tbl_logs_delete` (session_sessionId, session_sessionName, logMessage)
+    INSERT INTO `tbl_delete_logs` (session_sessionId, session_sessionName, logMessage)
     VALUES (OLD.sessionId, OLD.sessionName, 'Session deleted');
 END$$
 DELIMITER ; 
@@ -446,41 +533,12 @@ DELIMITER ;
 (Enunciado ponto 2 - 1.2)
 */
 
-
-
--- custom logic 
--- 5 views
--- 2 stored functions
--- 5 stored procedure
--- 2 triggers
-
--- View 1 : Sessoes ativas
--- View 2 : Session Lots
--- View 3 : Detalhes de um Item
--- View 4 : Taxa de sucesso (lotes vendidos vs. não vendidos) por sessão
--- View 5 : Leiloeiros com mais sessões realizadas ou maior volume de vendas
-
--- Function 1 : fn_isItemOnActiveSession
--- Function 2 : 
-
--- Procedure 1 : Get Lots for Item 
--- Procedure 2 : Get Sessions with item of category
--- Procedure 3 : Assign Lot to Session
--- Procedure 4 : Count how many times an item has been on a session, helpful to understand low selling items
--- Procedure 5 : Mark Lot as sold
--- Procedure 6 : Add auctonieer to session
--- Procedure 7 : Lancar uma BID a um lote numa sessao
-
--- Trigger 1 : Update Lot Price automatically when item are insterted and removed from ItemLot
--- Trigger 2 : 
-
-
 /*###########
    Views
 #############*/
 
 /* V1: vw_active_sessions
-List all active sessions
+  Desctription: Mostrar todas as sessões ativas, ou seja, com o estado 'active'
 */
 
 DROP VIEW IF EXISTS vw_active_sessions;
@@ -489,7 +547,7 @@ SELECT * FROM `Session` WHERE  sessionState = 'active';
 
 /*
   V2: vw_participant_details
-  List all participants details
+  Description: Mostrar todos os detalhes de um participante, incluindo o nome, email, NIF, idade, data de nascimento e genero que pertencem ao participante
 */
 DROP VIEW IF EXISTS vw_participant_details;
 CREATE VIEW vw_participant_details AS 
@@ -507,7 +565,7 @@ INNER JOIN `Person` per ON part.person_personID = per.personID;
 
 /*
   V3: vw_active_lots
-  List all lots on Sale
+  Description: Mostrar todos os lotes em venda, ou seja, que pertencam a uma sessao ativa
 */
 DROP VIEW IF EXISTS vw_active_lots;
 CREATE VIEW vw_active_lots AS
@@ -517,15 +575,74 @@ SELECT
   lotState AS "lotState",
   lotPrice AS "lotPrice"
 FROM Lot
-WHERE lotId IN (SELECT lot_lotID FROM `SessionLot` WHERE session_sessionId  IN (SELECT sessionId FROM `vw_active_sessions` WHERE sessionState = 'active'));
+WHERE lotId IN (SELECT lot_lotID FROM `SessionLot` WHERE session_sessionId  IN (SELECT sessionId FROM `vw_active_sessions`));
 
 
+/* V4: vw_highest_bids_per_lot
+  Description: Mostrar todas as licitacoes mais altas para cada lote
+*/
+
+DROP VIEW IF EXISTS vw_highest_bids_per_lot;
+CREATE VIEW vw_highest_bids_per_lot AS
+SELECT 
+    b.lot_lotId,
+    l.lotName,
+    b.session_sessionId,
+    s.sessionName,
+    b.bidId,
+    b.bidAmount,
+    b.participant_participantID,
+    p.participantName
+FROM `Bid` b
+JOIN `Lot` l ON l.lotId = b.lot_lotId
+JOIN `Session` s ON s.sessionId = b.session_sessionId
+JOIN `vw_participant_details` p ON p.participantId = b.participant_participantId
+WHERE b.bidAmount = (
+    SELECT MAX(b2.bidAmount)
+    FROM Bid b2
+    WHERE b2.lot_lotId = b.lot_lotId
+      AND b2.session_sessionId = b.session_sessionId
+);
+
+/* 
+V5: vw_orphan_lots
+Description: Mostrar todos os lotes sem sessao nenhuma ou sem sessao ativa ou futura
+*/
+
+DROP VIEW IF EXISTS vw_orphan_lots;
+CREATE VIEW vw_orphan_lots AS
+SELECT 
+    l.lotId,
+    l.lotName,
+    l.lotState
+FROM Lot l
+LEFT JOIN SessionLot sl ON sl.lot_lotId = l.lotId
+LEFT JOIN Session s ON s.sessionId = sl.session_sessionId
+WHERE s.sessionState IS NULL OR s.sessionState NOT IN ('complete', 'active', 'scheduled');
+
+-- V6: vw_item_lot_details
+DROP VIEW IF EXISTS vw_item_lot_details;
+CREATE VIEW vw_item_lot_details AS
+SELECT
+    l.lotId AS "lotId",
+    l.lotName AS "lotName",
+    l.lotState AS "lotState",
+    i.itemId AS "itemId",
+    i.itemName AS "itemName",
+    i.itemPrice AS "itemPrice",
+    i.itemCondition AS "itemCondition",
+    i.itemState AS "itemState"
+FROM Item i
+JOIN ItemLot il ON il.item_itemId = i.itemId
+JOIN Lot l ON l.lotId = il.lot_lotId
+ORDER BY l.lotId;
 
 /*####################
    Stored Procedures
 ######################*/
 
--- SPXXX : Add Lot to Session
+-- SP20: sp_add_lot_to_session(lotId, sessionId)
+-- Description: Adiciona um lote a uma sessao
 
 DROP PROCEDURE IF EXISTS sp_add_lot_to_session;
 DELIMITER $$
@@ -537,7 +654,8 @@ END$$
 DELIMITER ;
 
 
--- SPXXX : Add Item to Lot
+-- SP21: sp_add_item_to_lot(itemId, lotId)
+-- Description: Adiciona um item a um lote
 
 DROP PROCEDURE IF EXISTS sp_add_item_to_lot;
 DELIMITER $$
@@ -549,8 +667,8 @@ END$$
 DELIMITER ;
 
 
--- SPXXX : ADD A BID
--- Description: Add a bid to a lot
+-- SP22: sp_add_bid(bidAmount, participantId, sessionId, lotId)
+-- Description: Adiciona uma bid a um lote numa sessao
 -- IMPROVEMENT: Check if the bid is higher than the current bid, check if session is active
 
 DROP PROCEDURE IF EXISTS sp_add_bid;
@@ -563,8 +681,8 @@ END$$
 DELIMITER ;
 
 
--- - SPXXX: Start a session
--- Description: Start a session, set the state to active
+-- SP23: sp_start_session(sessionId)
+-- Description: Inicia uma sessao, marcando todos os seus lotes como on_sale
 
 DROP PROCEDURE IF EXISTS sp_start_session;
 DELIMITER $$
@@ -595,32 +713,11 @@ END$$
 DELIMITER ;
 
 
--- - SPXXX: Close a session
--- Description: Close a session, set the state to complete
-
-DROP PROCEDURE IF EXISTS sp_close_session;
-DELIMITER $$
-
-CREATE PROCEDURE sp_close_session(IN p_sessionId INT)
-BEGIN
-
-    -- Finally, mark the session as complete
-    UPDATE `Session`
-    SET sessionState = 'complete'
-    WHERE sessionId = p_sessionId;
-
-    CALL sp_create_transactions(p_sessionId);
-
-    
-END$$
-
-DELIMITER ;
 
 
-/* SPXXX: Create transactions
-  Description: Create transactions for a session
-  - For each lot in the session, if it has a bid related to it, mark lot as sold and create a transaction for it.
-*/
+
+-- SP24: sp_create_transactions(sessionId)
+-- Description: Cria transacoes para todas as bids em uma sessao
 
 DROP PROCEDURE IF EXISTS sp_create_transactions;
 DELIMITER $$
@@ -664,14 +761,11 @@ DELIMITER ;
 
 
 /*
-  SPXXX: Close a lot
-  Description: Close a lot, set the state to sold
-  - Remove lot from sessions that are not complete
-  - Remove item from lots that are in sale
-  - Mark items as sold
-  - Mark lot as Sold
-
+-- SP25: sp_mark_lot_as_sold(lotId)
+Description: Marca um lote como vendido, removendo-o de todas as sessoes que nao estao completas 
+removendo-o de todos os items que estao em leilao, marcando-os como vendidos.
 */
+
 DROP PROCEDURE IF EXISTS sp_mark_lot_as_sold;
 DELIMITER $$
 CREATE PROCEDURE sp_mark_lot_as_sold(IN p_lotId INT)
@@ -743,11 +837,8 @@ END$$
 DELIMITER ;
 
 
-/*
-  SPXXX: Start a lot for sale
-  Description: Start a lot for sale, set the state to for_sale
-
-*/
+-- SP26: sp_start_lot_sale(lotId)
+-- Description: Inicia uma sessao, marcando todos os seus lotes como on_sale
 DROP PROCEDURE IF EXISTS sp_start_lot_sale;
 DELIMITER $$
 CREATE PROCEDURE sp_start_lot_sale(IN p_lotId INT)
@@ -771,6 +862,8 @@ END$$
 DELIMITER ;
 
 
+-- SP27: sp_cleanup_sessions_and_lots()
+-- Description: Limpa as sessoes e lotes nao utilizados
 DROP PROCEDURE IF EXISTS sp_cleanup_sessions_and_lots;
 DELIMITER $$
 
@@ -793,92 +886,78 @@ END$$
 DELIMITER ;
 
 
-/*###########
-    Functions
-#############*/
 
-
-
-/* F1: fn_can_delete_session
-Return TRUE if the session can be deleted
-*/
-
-DROP FUNCTION IF EXISTS fn_can_delete_session;
+-- SP28: sp_update_lot_price(p_lotId)
+-- Description: Atualiza o preco de um lote com os precos de todos os seus items
+DROP PROCEDURE IF EXISTS sp_update_lot_price;
 DELIMITER $$
-CREATE FUNCTION fn_can_delete_session(sessionId INT) RETURNS BOOLEAN
-DETERMINISTIC
-READS SQL DATA
+
+CREATE PROCEDURE sp_update_lot_price(IN p_lotId INT)
 BEGIN
-  DECLARE dependentCount INT DEFAULT 0;
-
-  -- Check in ParticipantSession
-  SELECT COUNT(*) INTO dependentCount
-  FROM ParticipantSession
-  WHERE session_sessionId = sessionId;
-
-  IF dependentCount > 0 THEN
-    RETURN FALSE;
-  END IF;
-
-  -- Check in Bid
-  SELECT COUNT(*) INTO dependentCount
-  FROM Bid
-  WHERE session_sessionId = sessionId;
-
-  IF dependentCount > 0 THEN
-    RETURN FALSE;
-  END IF;
-
-  -- Check in SessionLot
-  SELECT COUNT(*) INTO dependentCount
-  FROM SessionLot
-  WHERE session_sessionId = sessionId;
-
-  IF dependentCount > 0 THEN
-    RETURN FALSE;
-  END IF;
-
-  -- If no dependencies found, session can be deleted
-  RETURN TRUE;
+    UPDATE Lot
+    SET lotPrice = (
+        SELECT SUM(i.itemPrice)
+        FROM `Item` i
+        JOIN `ItemLot` il ON i.itemID = il.item_itemID
+        WHERE il.lot_lotID = p_lotId
+    ) WHERE lotId = p_lotId;
 END$$
 DELIMITER ;
 
 
-/* F2: fn_calculate_age
-Return the age of a person
-*/
-DROP FUNCTION IF EXISTS fn_calculate_age;
-DELIMITER $$
-CREATE FUNCTION fn_calculate_age(birthDate DATE) RETURNS INT
-DETERMINISTIC
-BEGIN
-    DECLARE age INT;
-    SET age = YEAR(CURDATE()) - YEAR(birthDate);
-    
-    -- If the current date is before the birthday this year, subtract 1
-    IF (MONTH(CURDATE()) < MONTH(birthDate)) 
-       OR (MONTH(CURDATE()) = MONTH(birthDate) AND DAY(CURDATE()) < DAY(birthDate)) THEN
-        SET age = age - 1;
-    END IF;
-    
-    RETURN age;
-END$$
 
-DELIMITER ;
-
-
-/* TO COMPLETE NOT WORKING */
-DROP FUNCTION IF EXISTS fn_isItemOnActiveSession;
-DELIMITER $$
-CREATE FUNCTION fn_isItemOnActiveSession(itemId INT, sessionId INT) RETURNS BOOLEAN
-DETERMINISTIC
-READS SQL DATA
-BEGIN
-    RETURN EXISTS (SELECT * FROM ItemLot WHERE item_itemId = itemId AND session_sessionId = sessionId);
-END$$
-DELIMITER ;
 
 
 /* ##### 
   TRIGGERS
   #####*/
+
+-- T3: item_update
+-- Description: Atualiza o preço de um lote quando um item adicionado ou removido
+DROP TRIGGER IF EXISTS item_update;
+DELIMITER $$
+CREATE TRIGGER item_update AFTER UPDATE ON Item
+FOR EACH ROW
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_lotId INT;
+    DECLARE lotCursor CURSOR FOR
+        SELECT lot_lotId FROM ItemLot WHERE item_itemID = NEW.itemID;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN lotCursor;
+    read_loop: LOOP
+        FETCH lotCursor INTO v_lotId;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        CALL sp_update_lot_price(v_lotId);
+    END LOOP;
+    CLOSE lotCursor;
+
+END$$
+DELIMITER ;
+
+
+-- T4: item_lot_insert 
+-- Description: Atualiza o preço de um lote quando um item adicionado
+DROP TRIGGER IF EXISTS item_lot_insert;
+DELIMITER $$
+CREATE TRIGGER item_lot_insert AFTER INSERT ON ItemLot
+FOR EACH ROW
+BEGIN
+    CALL sp_update_lot_price(NEW.lot_lotId);
+END$$
+DELIMITER ;
+
+
+-- T5: item_lot_delete
+-- Description: Atualiza o preço de um lote quando um item removido
+DROP TRIGGER IF EXISTS item_lot_delete;
+DELIMITER $$
+CREATE TRIGGER item_lot_delete AFTER DELETE ON ItemLot
+FOR EACH ROW
+BEGIN
+    CALL sp_update_lot_price(OLD.lot_lotId);
+END$$
+DELIMITER ;

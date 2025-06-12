@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS `Item` (
 	itemName VARCHAR(30),
 	itemPrice DECIMAL(10, 2),
 	itemCondition SET('used', 'new', 'partially used'),
-	itemState SET('sold', 'on_sale', 'new'),
+	itemState SET('sold', 'on_sale', 'new') DEFAULT 'new',
 	machineCategory_machineCategoryId INT NULL,
 	muscleCategory_muscleCategoryId INT,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -227,7 +227,7 @@ DROP TABLE IF EXISTS `tbl_logs`;
 CREATE TABLE IF NOT EXISTS `tbl_logs` (
 	logId INT PRIMARY KEY AUTO_INCREMENT,
 	session_sessionId INT,
-	session_sessionName VARCHAR(30),
+	session_sessionName VARCHAR(100),
 	sessionState_old VARCHAR(15),
 	sessionState_new VARCHAR(15),
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -240,23 +240,23 @@ DROP TABLE IF EXISTS `tbl_delete_logs`;
 CREATE TABLE IF NOT EXISTS `tbl_delete_logs` (
 	logId INT PRIMARY KEY AUTO_INCREMENT,
 	session_sessionId INT,
-	session_sessionName VARCHAR(30),
-	logMessage VARCHAR(30) NOT NULL,
+	session_sessionName VARCHAR(100),
+	logMessage VARCHAR(100) NOT NULL,
 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 
--- CREATE TABLE IF NOT EXISTS tbl_generic_logs
-DROP TABLE IF EXISTS `tbl_generic_logs`;
-CREATE TABLE IF NOT EXISTS `tbl_generic_logs` (
-	logId INT PRIMARY KEY AUTO_INCREMENT,
-	resourceType VARCHAR(30) NOT NULL,
-	logMessage TEXT NOT NULL,
-	relatedId INT,
-	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- -- CREATE TABLE IF NOT EXISTS tbl_generic_logs
+-- DROP TABLE IF EXISTS `tbl_generic_logs`;
+-- CREATE TABLE IF NOT EXISTS `tbl_generic_logs` (
+-- 	logId INT PRIMARY KEY AUTO_INCREMENT,
+-- 	resourceType VARCHAR(30) NOT NULL,
+-- 	logMessage TEXT NOT NULL,
+-- 	relatedId INT,
+-- 	createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+-- 	updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+-- ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- Enable foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;

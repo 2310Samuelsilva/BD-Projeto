@@ -251,6 +251,8 @@ CALL sp_adicionar_participante(10, 10);
 -- CALL sp_add_lot_to_session(lotId, sessionId);
 CALL sp_add_lot_to_session(1,1);
 CALL sp_add_lot_to_session(1,2);
+CALL sp_add_lot_to_session(2,2);
+CALL sp_add_lot_to_session(10,2);
 CALL sp_add_lot_to_session(3, 4);
 CALL sp_add_lot_to_session(4, 5);
 CALL sp_add_lot_to_session(5, 6);
@@ -291,3 +293,98 @@ CALL sp_add_item_to_lot(20, 20);
 CALL sp_add_bid(100.00, 1, 1, 1);
 CALL sp_add_bid(200.00, 2, 1, 1);
 CALL sp_add_bid(200.00, 1, 2, 1);
+CALL sp_add_bid(150.00, 1, 1, 1);
+CALL sp_add_bid(180.00, 2, 1, 1);
+CALL sp_add_bid(220.00, 1, 2, 1);
+CALL sp_add_bid(250.00, 5, 6, 5);
+
+-- update session state
+UPDATE Session SET sessionState = 'active' WHERE sessionId IN (1, 3);
+UPDATE Session SET sessionState = 'complete' WHERE sessionId IN (2, 4);
+
+-- update items
+UPDATE Item SET itemState = 'sold' WHERE itemId IN (1, 3, 5, 7);
+
+-- new category/subcategory 
+INSERT INTO `MuscleCategory` (muscleCategoryName, parentMuscleCategoryId) VALUES 
+('forearm', 1),  -- subcategoria de arms
+('hamstring', 2); -- subcategoria de legs
+
+-- items em mais que 1 lote para testar a Q4.2
+CALL sp_add_item_to_lot(1, 2);  
+CALL sp_add_item_to_lot(3, 2);
+CALL sp_add_item_to_lot(6, 2); 
+
+UPDATE Item SET itemState = 'sold' 
+WHERE machineCategory_machineCategoryId = 1 
+AND itemId IN (1, 6, 11, 16);
+
+-- 2. Adicionar transações
+INSERT INTO `Transaction` (
+    session_sessionId, 
+    lot_lotId, 
+    transactionAmount, 
+    participant_participantID,
+    bid_bidId,
+    transactionState
+)
+SELECT 
+    b.session_sessionId,
+    b.lot_lotId,
+    b.bidAmount,
+    b.participant_participantID,
+    b.bidId,
+    'success'
+FROM Bid b
+JOIN (
+    SELECT 
+        lot_lotId,
+        MAX(bidAmount) AS max_bid
+    FROM Bid
+    GROUP BY lot_lotId
+) max_bids ON b.lot_lotId = max_bids.lot_lotId AND b.bidAmount = max_bids.max_bid
+JOIN ItemLot il ON b.lot_lotId = il.lot_lotID
+JOIN Item i ON il.item_itemID = i.itemId
+WHERE i.itemState = 'sold' 
+AND i.machineCategory_machineCategoryId = 1;
+
+-- 1. Adicionar mais bids
+-- Para o lote 1 (contém item 1 da categoria 1)
+CALL sp_add_bid(150.00, 1, 1, 1);
+CALL sp_add_bid(180.00, 2, 1, 1);
+CALL sp_add_bid(200.00, 1, 1, 1);
+
+-- Para o lote 2 (contém item 6 da categoria 1)
+CALL sp_add_bid(250.00, 1, 2, 2);
+CALL sp_add_bid(300.00, 2, 2, 2);
+
+-- Para o lote 11 (contém item 11 da categoria 1)
+CALL sp_add_bid(350.00, 5, 2, 11);
+CALL sp_add_bid(400.00, 6, 2, 11);
+
+-- 2. Atualizar estados dos lotes com itens vendidos
+UPDATE Lot SET lotState = 'sold' 
+WHERE lotId IN (1, 2, 11);
+
+-- 3. Adicionar mais um item da categoria 1 em outra sessão para variar
+-- Criar novo lote
+INSERT INTO Lot (lotName, lotPrice, lotState) VALUES ('Lot21', NULL, 'not_sold');
+
+-- Adicionar item existente (16) ao novo lote
+CALL sp_add_item_to_lot(16, 21);
+
+-- Associar à sessão 3
+CALL sp_add_lot_to_session(21, 3);
+
+-- Adicionar bids para esse lote
+CALL sp_add_bid(500.00, 1, 3, 21);
+CALL sp_add_bid(550.00, 2, 3, 21);
+
+-- Atualizar estado do lote
+UPDATE Lot SET lotState = 'sold' WHERE lotId = 21;
+
+INSERT INTO `Item` (itemName, itemPrice, itemCondition, itemState, machineCategory_machineCategoryId, muscleCategory_muscleCategoryId) VALUES 
+('Item22', 200.00, 'new', 'new', 5, 5);
+
+INSERT INTO `Person` (personName, personEmail, personBirthDate, personNIF, personGender) VALUES
+('Participant22', 'participant22@participant.com', '1990-01-01', 123456123, 'male');
