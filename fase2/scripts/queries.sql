@@ -1,4 +1,4 @@
-use ipm_bidding_system;
+use bidding_system;
 -- Q1.1
 -- Listagem de participantes femininos que participaram
 SELECT 

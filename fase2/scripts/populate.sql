@@ -1,5 +1,5 @@
 -- Use the DB
-USE ipm_bidding_system;
+USE bidding_system;
 
 -- Disable FK checks
 SET FOREIGN_KEY_CHECKS=0;
@@ -24,7 +24,6 @@ TRUNCATE TABLE `MachineCategory`;
 TRUNCATE TABLE `MuscleCategory`;
 TRUNCATE TABLE `tbl_logs`;
 TRUNCATE TABLE `tbl_delete_logs`;
-TRUNCATE TABLE `tbl_generic_logs`;
 
 -- Enable FK checks again
 SET FOREIGN_KEY_CHECKS=1;

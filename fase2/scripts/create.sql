@@ -1,8 +1,8 @@
 -- Create the database with charset and collation
-CREATE DATABASE IF NOT EXISTS ipm_bidding_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS bidding_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Use the database
-USE ipm_bidding_system;
+USE bidding_system;
 
 -- Disable foreign key checks
 SET FOREIGN_KEY_CHECKS = 0;
